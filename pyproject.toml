@@ -1,3 +1,21 @@
+[build-system]
+requires = ["setuptools>=42", "setuptools_scm[toml]>=6.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "NeuroBlocks"
+version = "0.0.0"
+description = "Reusable plotting functions for computational neuroscience"
+authors = [
+  {name = "David Aquilué-Llorens", email = "david.aquilue@upf.edu"}
+]
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "node-and-date"
+
+
+
 # Contains settings for automatic Ruff formatting
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.

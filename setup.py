@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="NeuroBlocks",
+    name="neuroblocks",
     use_scm_version={"write_to": "neuroblocks/_version.py"},
     setup_requires=["setuptools_scm"],
     author="David Aquilué-Llorens",

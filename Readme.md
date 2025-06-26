@@ -1,4 +1,4 @@
-# NeuroBlocks
+# neuroblocks
 
 Package description
 ---------------------
@@ -8,7 +8,7 @@ project on Alzheimer's Disease research.
 Folders
 ------------
 
-### NeuroBlocks
+### neuroblocks
 The `src` directory contains a set of modules that help manage data loading,
 path management and computation of results.
 

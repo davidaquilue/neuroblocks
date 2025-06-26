@@ -2,9 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="your_toolbox",
-    use_scm_version={
-        "write_to": "your_toolbox/_version.py"
-    },
+    use_scm_version={"write_to": "your_toolbox/_version.py"},
     setup_requires=["setuptools_scm"],
     author="Your Name",
     author_email="your.email@example.com",
@@ -25,5 +23,5 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.8',
+    python_requires=">=3.8",
 )

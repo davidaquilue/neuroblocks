@@ -1,6 +1,7 @@
 """
 Functions to load parcellated data from ADNI.
 """
+
 import re
 import warnings
 from .loader import FlexibleBIDSLoader, load_numpy_data_to_leaves
@@ -13,18 +14,16 @@ class PETParcellatedLoader(FlexibleBIDSLoader):
     be implemented which will be used to sift through the different files and load
     the relevant ones.
     """
+
     def __init__(self, dir_to_load, parcellation_str, in_centiloid=False):
         super().__init__(dir_to_load)
         self.parcellation_str = parcellation_str
         self.in_centiloid = in_centiloid
-        pet_re = (
-            r"sub-(?P<sub>[^_]+)_ses-(?P<ses>[^_]+)(?:_trc-(?P<tracer>[^_]+))?_(?P<modality>pet)_"
-        )
+        pet_re = r"sub-(?P<sub>[^_]+)_ses-(?P<ses>[^_]+)(?:_trc-(?P<tracer>[^_]+))?_(?P<modality>pet)_"
         if in_centiloid:
             self.pattern = re.compile(pet_re + self.parcellation_str + r"_CL\.npy")
         else:
             self.pattern = re.compile(pet_re + self.parcellation_str + r"\.npy")
-
 
     def get_parcellated_data(self):
         # Performs a scan of the data, and then goes over all the obtained paths and
@@ -32,7 +31,6 @@ class PETParcellatedLoader(FlexibleBIDSLoader):
         self._scan()
         load_numpy_data_to_leaves(self.data)
         return self.data
-
 
     def get_parcellated_data_in_simple_dict(self, trcrs="all", which_session=0):
         """
@@ -54,7 +52,9 @@ class PETParcellatedLoader(FlexibleBIDSLoader):
             # Sort sessions alphanumerically and pick the one requested
             sorted_sessions = sorted(sessions.keys())
             if which_session >= len(sorted_sessions):
-                warnings.warn(f"Skipped {subject} - session index is out of range")
+                warnings.warn(
+                    f"Skipped {subject} - session index is out of range", stacklevel=2
+                )
                 continue
 
             session = sorted_sessions[which_session]

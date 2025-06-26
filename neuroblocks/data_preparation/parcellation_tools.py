@@ -13,6 +13,7 @@ Current implemented parcellations:
 - Glasser
 - DBS80
 """
+
 import re
 import numpy as np
 import nibabel as nib
@@ -37,20 +38,34 @@ def get_parcellater(parcellation_str):
     if "Schaefer" in parcellation_str:
         nrois = int(re.findall(r"\d+", parcellation_str)[0])
         # First we fetch the parcellation atlas
-        schaefer = nilearn.datasets.fetch_atlas_schaefer_2018(n_rois=nrois, resolution_mm=2)
+        schaefer = nilearn.datasets.fetch_atlas_schaefer_2018(
+            n_rois=nrois, resolution_mm=2
+        )
         # Initialize the Parcellater
         parcellater = Parcellater(schaefer["maps"], "MNI152")
         file_ext = f"Schaefer{nrois}"
 
     elif "Glasser" in parcellation_str:
-        glasser_path = (Path(__file__).parent / ".." / ".." / "atlases" / "Glasser" /
-                        "glasser_MNI152NLin6Asym_labels_p20.nii.gz").resolve()
+        glasser_path = (
+            Path(__file__).parent
+            / ".."
+            / ".."
+            / "atlases"
+            / "Glasser"
+            / "glasser_MNI152NLin6Asym_labels_p20.nii.gz"
+        ).resolve()
         parcellater = Parcellater(glasser_path.resolve(), "MNI152")
         file_ext = "Glasser"
 
     elif "DBS80" in parcellation_str:
-        dbs_path = (Path(__file__).parent / ".." / ".." / "atlases" / "DBS80" /
-                    "dbs80symm_2mm.nii.gz").resolve()
+        dbs_path = (
+            Path(__file__).parent
+            / ".."
+            / ".."
+            / "atlases"
+            / "DBS80"
+            / "dbs80symm_2mm.nii.gz"
+        ).resolve()
         parcellater = Parcellater(dbs_path, "MNI152")
         file_ext = "DBS80"
     else:
@@ -77,17 +92,31 @@ def get_parcellation_nifti(parcellation_str):
     if "Schaefer" in parcellation_str:
         nrois = int(re.findall(r"\d+", parcellation_str)[0])
         # First we fetch the parcellation atlas
-        schaefer = nilearn.datasets.fetch_atlas_schaefer_2018(n_rois=nrois, resolution_mm=2)
-        parcellation_nifti = nib.load(schaefer['maps'])
+        schaefer = nilearn.datasets.fetch_atlas_schaefer_2018(
+            n_rois=nrois, resolution_mm=2
+        )
+        parcellation_nifti = nib.load(schaefer["maps"])
 
     elif "Glasser" in parcellation_str:
-        glasser_path = (Path(__file__).parent / ".." / ".." / "atlases" / "Glasser" /
-                        "glasser_MNI152NLin6Asym_labels_p20.nii.gz").resolve()
+        glasser_path = (
+            Path(__file__).parent
+            / ".."
+            / ".."
+            / "atlases"
+            / "Glasser"
+            / "glasser_MNI152NLin6Asym_labels_p20.nii.gz"
+        ).resolve()
         parcellation_nifti = nib.load(glasser_path)
 
     elif "DBS80" in parcellation_str:
-        dbs_path = (Path(__file__).parent / ".." / ".." / "atlases" / "DBS80" /
-                    "dbs80symm_2mm.nii.gz").resolve()
+        dbs_path = (
+            Path(__file__).parent
+            / ".."
+            / ".."
+            / "atlases"
+            / "DBS80"
+            / "dbs80symm_2mm.nii.gz"
+        ).resolve()
         parcellation_nifti = nib.load(dbs_path)
     else:
         raise ValueError("Parcellation is not integrated in get_parcellation_nifti")
@@ -112,7 +141,7 @@ def parcellation_to_volume(parcellated_data, parcellation_str):
     atlas_data = atlas_nifti.get_fdata()
     volume_nifti = np.zeros(atlas_data.shape)
     for region_label in range(1, len(parcellated_data) + 1):
-        mask = (atlas_data == region_label)
+        mask = atlas_data == region_label
         volume_nifti[mask] += parcellated_data[region_label - 1]
     volume_nifti = nib.Nifti1Image(volume_nifti, atlas_nifti.affine)
     return volume_nifti

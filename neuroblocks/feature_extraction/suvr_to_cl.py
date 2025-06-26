@@ -37,7 +37,7 @@ def pet_suvr_to_centiloid(suvr_pet_path, suvr_to_cl_expr):
     a = float(match.group(1))
     b = float(match.group(2).replace(" ", ""))
     # Resample cortical target VOI to match PET image
-    resampled_ctx = resample_to_img(ctx_voi_img, suvr_pet_img, interpolation='nearest')
+    resampled_ctx = resample_to_img(ctx_voi_img, suvr_pet_img, interpolation="nearest")
     ctx_voi_mask = resampled_ctx.get_fdata()
     # Compute mean SUVR in the target VOI and transform to CL
     avg_suvr_ctx = np.mean(suvr_pet_arr[ctx_voi_mask == 1])

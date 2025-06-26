@@ -1,14 +1,16 @@
 """
 Functions to plot data in brain
 """
+
 import numpy as np
 import nibabel as nib
 from nilearn.plotting import plot_stat_map
 from ..data_preparation.parcellation_tools import get_parcellation_nifti
 
 
-def parcellation_to_brain_heatmap(data_parcellated, parcellation_type, output_path,
-                                  **kwargs_stat_map):
+def parcellation_to_brain_heatmap(
+    data_parcellated, parcellation_type, output_path, **kwargs_stat_map
+):
     """
     A parcellation is passed, and a 3D volume is generated which is then used to plot a
     3-view plot of heatmap.
@@ -30,8 +32,10 @@ def parcellation_to_brain_heatmap(data_parcellated, parcellation_type, output_pa
 
     # Loop through region labels and assign the scalar value to each voxel in the region
     for region_label in range(1, len(data_parcellated) + 1):
-        mask = (parcellation_data == region_label)
-        data_nifti[mask] += data_parcellated[region_label - 1]  # Correct scalar assignment
+        mask = parcellation_data == region_label
+        data_nifti[mask] += data_parcellated[
+            region_label - 1
+        ]  # Correct scalar assignment
 
     # Create a new NIfTI image
     data_img = nib.Nifti1Image(data_nifti, parcellation_nifti.affine)

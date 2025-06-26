@@ -18,8 +18,8 @@ PRESETS = {
     "bold": r"sub-(?P<sub>[^_]+)_ses-(?P<ses>[^_]+)_(?P<modality>bold).*\.nii(\.gz)?",
     "dwi": r"sub-(?P<sub>[^_]+)_ses-(?P<ses>[^_]+)_(?P<modality>dwi).*\.nii(\.gz)?",
     "pet": r"sub-(?P<sub>[^_]+)_ses-(?P<ses>[^_]+)_(trc-(?P<tracer>[^-_]+)_)?"
-           r"(?P<modality>pet).*\.nii(\.gz)?",
-    "any": r"sub-(?P<sub>[^_]+)_ses-(?P<ses>[^_]+).*_(?P<modality>[a-zA-Z0-9]+).*\.nii(\.gz)?"
+    r"(?P<modality>pet).*\.nii(\.gz)?",
+    "any": r"sub-(?P<sub>[^_]+)_ses-(?P<ses>[^_]+).*_(?P<modality>[a-zA-Z0-9]+).*\.nii(\.gz)?",
 }
 
 
@@ -28,7 +28,7 @@ def load_numpy_data_to_leaves(d):
     Recursively traverse a nested dictionary and, at each leaf-level dictionary,
     add a key 'data' with an empty dictionary as its value (or some other content).
     """
-    for key, value in d.items():
+    for _, value in d.items():
         if isinstance(value, dict):
             # If value is a dict, go deeper
             if all(not isinstance(v, dict) for v in value.values()):
@@ -99,7 +99,6 @@ class FlexibleBIDSLoader:
         self._scan()
         return self.data
 
-
     def nested_dict_to_dataframe(self):
         """
         Convert nested data dict of the form:
@@ -119,22 +118,26 @@ class FlexibleBIDSLoader:
                     # Check if PET modality has nested tracer dict
                     if modality == "pet" and isinstance(val, dict):
                         for tracer, info in val.items():
-                            rows.append({
+                            rows.append(
+                                {
+                                    "subject": subject,
+                                    "session": session,
+                                    "modality": modality,
+                                    "tracer": tracer,
+                                    "path": info.get("path"),
+                                }
+                            )
+                    else:
+                        # Normal modality
+                        rows.append(
+                            {
                                 "subject": subject,
                                 "session": session,
                                 "modality": modality,
-                                "tracer": tracer,
-                                "path": info.get("path"),
-                            })
-                    else:
-                        # Normal modality
-                        rows.append({
-                            "subject": subject,
-                            "session": session,
-                            "modality": modality,
-                            "tracer": None,
-                            "path": val.get("path"),
-                        })
+                                "tracer": None,
+                                "path": val.get("path"),
+                            }
+                        )
 
-        df = pd.DataFrame(rows)
-        return df
+        df_loader = pd.DataFrame(rows)
+        return df_loader

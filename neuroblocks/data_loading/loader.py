@@ -7,6 +7,7 @@ expressions both from the root BIDS or derivatives folder.
 
 import re
 
+import warnings
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -141,3 +142,64 @@ class FlexibleBIDSLoader:
 
         df_loader = pd.DataFrame(rows)
         return df_loader
+
+    def average_data_over_participants(self, participant_ids, which_session=0):
+        """
+        Takes a list of participant_ids and averages the data in the "data" key,
+        for the n-th session available in the dataset.
+
+        WARNING: Requires data to have been loaded previously with a different method
+        such as get_parcellated_data() in the PETParcellatedLoader subclass. The loaded
+        data must follow the same structure as the _scan() method, but adding a
+        "data" key with loaded data as value.
+
+        :param participant_ids: list of str
+        :param which_session: int
+        :return: Returns a dictionary containing the averaged data over the
+        participants. For "pet" modality, it returns keys a mean array per tracer, with
+        "avg_{trc}" key, for other modalities, returns a single key with "avg".
+        """
+        # We will store in the data_lists the data. If the modality is PET and we
+        # have more than one tracer, we will store it in the dictionary.
+        # key will be either "avg" or "avg_trc"
+        data_lists = {"avg": []}
+
+        for subject, sessions in self.data.items():
+            if subject not in participant_ids:
+                # Iterate only over the subjects in participant_ids
+                continue
+            # Sort sessions alphanumerically and pick the one requested
+            sorted_sessions = sorted(sessions.keys())
+            if which_session >= len(sorted_sessions):
+                warnings.warn(
+                    f"Skipped {subject} - session index is out of range", stacklevel=2
+                )
+                continue
+            session = sorted_sessions[which_session]
+            # Get the modality of the data
+            modality = list(sessions.get(session, {}).keys())[0]
+            modality_val = sessions.get(session, {})[modality]
+            if modality == "pet":
+                for trc, trc_dict in modality_val.items():
+                    if f"avg_{trc}" not in data_lists:
+                        data_lists[f"avg_{trc}"] = []
+                    data_lists[f"avg_{trc}"].append(trc_dict["data"])
+            else:
+                data_lists["avg"].append(modality_val["data"])
+
+        if len(data_lists["avg"]) == 0:  # For PET cases with given trcrs.
+            data_lists.pop("avg")  # Remove the "avg" key
+
+        for key, data_list in data_lists.items():
+            try:
+                # Check whether it's numpy arrays
+                data_arr = np.array(data_list)
+                # Perform average
+                data_lists[key] = np.mean(data_arr, axis=0)
+            except TypeError:
+                print(
+                    f"Cannot convert data in {key} to numpy array. "
+                    f"Implementation not available for data_type"
+                )
+
+        return data_lists

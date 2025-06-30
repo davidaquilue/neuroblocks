@@ -46,17 +46,23 @@ class FlexibleBIDSLoader:
     and customizable or preset regex patterns to extract subject, session, and modality info.
     """
 
-    def __init__(self, dir_to_load, pattern="any"):
+    def __init__(self, dir_to_load, pattern="any", subset_participants=None):
         """
         Initialize the loader.
 
         Args:
             dir_to_load (str or Path): Path to the BIDS dataset root.
             pattern (str): Either a regex string or a key from PRESETS.
+            subset_participants: iterable containing a subset of the participants
+            from the dataset to gather data from them. Default None.
         """
         self.PRESETS = PRESETS
         self.dir_to_load = Path(dir_to_load)
         self.data = defaultdict(lambda: defaultdict(dict))
+        # We clean the participants if they are provided in BIDS format
+        self.subset_participants = [
+            sub.replace("sub-", "") for sub in subset_participants
+        ]
 
         # Compile pattern
         if pattern in self.PRESETS:
@@ -77,6 +83,9 @@ class FlexibleBIDSLoader:
             # Pseudocode inside your _scan method after matching:
 
             sub = info.get("sub", "unknown")
+            if self.subset_participants is not None:  # If we have passed
+                if sub not in self.subset_participants:  # And sub not in list
+                    continue  # skip this file
             ses = info.get("ses", "unknown")
             modality = info.get("modality", "unknown")
             tracer = info.get("tracer")  # might be None if missing

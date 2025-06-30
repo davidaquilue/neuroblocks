@@ -15,8 +15,13 @@ class PETParcellatedLoader(FlexibleBIDSLoader):
     the relevant ones.
     """
 
-    def __init__(self, dir_to_load, parcellation_str, in_centiloid=False,
-                 subset_participants=None):
+    def __init__(
+        self,
+        dir_to_load,
+        parcellation_str,
+        in_centiloid=False,
+        subset_participants=None,
+    ):
         super().__init__(dir_to_load, subset_participants=subset_participants)
         self.parcellation_str = parcellation_str
         self.in_centiloid = in_centiloid

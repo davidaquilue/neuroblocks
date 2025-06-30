@@ -9,11 +9,16 @@ from .loader import FlexibleBIDSLoader, load_numpy_data_to_leaves
 
 class PETParcellatedLoader(FlexibleBIDSLoader):
     """
-    Class to load Parcellated PET data as output from our pre-processing pipeline.
-    Inherits from our FlexibleBIDSLoader, which requires a specific regex pattern to
-    be implemented which will be used to sift through the different files and load
-    the relevant ones.
-    """
+    Initialize the PETParcellatedLoader.
+
+    :param dir_to_load (str): Path to the directory containing BIDS-structured PET data.
+    :param parcellation_str (str): A string identifier for the parcellation scheme
+        used in preprocessing (e.g., 'AAL', 'Schaefer').
+    :param in_centiloid (bool): Whether the PET values are expressed in Centiloid units.
+        If True, expects filenames with "_CL.npy" suffix.
+    :param subset_participants (list or None): Optional list of participant IDs to limit
+        the data loading to a subset.
+   """
 
     def __init__(
         self,

@@ -18,7 +18,7 @@ class PETParcellatedLoader(FlexibleBIDSLoader):
         If True, expects filenames with "_CL.npy" suffix.
     :param subset_participants (list or None): Optional list of participant IDs to limit
         the data loading to a subset.
-   """
+    """
 
     def __init__(
         self,

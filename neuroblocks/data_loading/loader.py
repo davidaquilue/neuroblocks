@@ -60,9 +60,12 @@ class FlexibleBIDSLoader:
         self.dir_to_load = Path(dir_to_load)
         self.data = defaultdict(lambda: defaultdict(dict))
         # We clean the participants if they are provided in BIDS format
-        self.subset_participants = [
-            sub.replace("sub-", "") for sub in subset_participants
-        ]
+        if subset_participants is not None:
+            self.subset_participants = [
+                sub.replace("sub-", "") for sub in subset_participants
+            ]
+        else:
+            self.subset_participants = subset_participants
 
         # Compile pattern
         if pattern in self.PRESETS:

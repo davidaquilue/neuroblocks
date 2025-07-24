@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="neuroblocks",
-    use_scm_version={"write_to": "neuroblocks/_version.py"},
+    use_scm_version=True,
     setup_requires=["setuptools_scm"],
     author="David Aquilué-Llorens",
     author_email="david.aquilue@upf.edu",
@@ -10,7 +10,8 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/yourusername/your_toolbox",
-    packages=find_packages(),
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

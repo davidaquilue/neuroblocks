@@ -4,6 +4,7 @@ setup(
     name="neuroblocks",
     use_scm_version={"write_to": "neuroblocks/_version.py"},
     setup_requires=["setuptools_scm"],
+    include_package_data=True,
     author="David Aquilué-Llorens",
     author_email="david.aquilue@upf.edu",
     description="Utility functions for neuroimaging and Alzheimer's research",

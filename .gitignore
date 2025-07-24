@@ -12,3 +12,6 @@
 # Virtual environments
 venv/
 .venv/
+
+# version tagging
+*_version.py

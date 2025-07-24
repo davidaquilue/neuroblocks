@@ -3,6 +3,7 @@ In this script we include a function that plots a boxplot and performs statistic
 testing.
 """
 
+import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.stats import kruskal
@@ -12,7 +13,9 @@ from statsmodels.formula.api import ols
 import statsmodels.api as sm
 
 
-def boxplot_with_stats(data, group_col, value_col, method="auto", ax=None, title=""):
+def boxplot_with_stats(
+        data, group_col, value_col, method="auto", ax=None, title="", **plot_kwargs
+):
     """
     Plots boxplots of a continuous variable grouped by a categorical variable,
     performs statistical tests, and annotates significant differences.
@@ -22,6 +25,8 @@ def boxplot_with_stats(data, group_col, value_col, method="auto", ax=None, title
     - group_col: column name (str) for group labels
     - value_col: column name (str) for continuous variable
     - method: 'auto', 'anova', or 'kruskal'. Determines the global test.
+    - plot_kwargs: additional parameters to pass as kwargs to the
+        violin_box_scatter_plot function such as palette, xlabel, ylabel, etc.
     """
     unique_groups = data[group_col].dropna().unique()
     data = data[
@@ -36,16 +41,8 @@ def boxplot_with_stats(data, group_col, value_col, method="auto", ax=None, title
         # Plot boxplot
         fig, ax = plt.subplots(1, 1, figsize=(10, 6))
 
-    ax = sns.boxplot(data=data, x=group_col, y=value_col, ax=ax, hue=group_col)
-    sns.stripplot(
-        data=data,
-        x=group_col,
-        y=value_col,
-        color="black",
-        size=4,
-        alpha=0.6,
-        jitter=True,
-        ax=ax,
+    violin_box_scatter_plot(
+        data, x=group_col, y=value_col, ax=ax, hue=group_col, **plot_kwargs
     )
 
     # Global test
@@ -131,3 +128,98 @@ def boxplot_with_stats(data, group_col, value_col, method="auto", ax=None, title
 
     else:
         print("No significant difference found in the global test.")
+
+
+def violin_box_scatter_plot(
+    df: pd.DataFrame,
+    x: str,
+    y: str,
+    hue: str = None,
+    order: list = None,
+    palette: str or dict = "colorblind",
+    violin_kwargs: dict = None,
+    box_kwargs: dict = None,
+    strip_kwargs: dict = None,
+    figsize: tuple = (10, 6),
+    title: str = "",
+    xlabel: str = None,
+    ylabel: str = None,
+    show_legend: bool = True,
+    save_path: str = None,
+    ax=None,
+):
+    """
+    Plots a violin plot with inner boxplot and jittered scatter points from a DataFrame.
+
+    Parameters:
+    - df: pandas DataFrame
+    - x: categorical column (str)
+    - y: numeric column (str)
+    - hue: optional grouping variable (str)
+    - order: custom order of categories on x-axis (list)
+    - palette: color palette (str or dict)
+    - violin_kwargs, box_kwargs, strip_kwargs: dicts for styling each layer
+    - figsize: tuple, figure size
+    - title: plot title
+    - xlabel, ylabel: axis labels
+    - show_legend: toggle legend
+    - save_path: path to save the figure (str)
+    """
+    sns.set(style="whitegrid")
+
+    violin_kwargs = violin_kwargs or {
+        "inner": None, "linewidth": 1, "alpha": 0.6
+    }
+    box_kwargs = box_kwargs or {
+        "width": 0.1, "fliersize": 0, "linewidth": 1.2
+    }
+    strip_kwargs = strip_kwargs or {
+        "jitter": 0.2, "size": 3, "alpha": 0.5, "linewidth": 0.3
+    }
+
+    return_fig = False
+    if ax is None:
+        return_fig = True
+        fig, ax = plt.subplots(figsize=figsize)
+
+    # Layer 1: Violin plot
+    sns.violinplot(
+        data=df, x=x, y=y, hue=hue, order=order, ax=ax,
+        palette=palette, **violin_kwargs
+    )
+
+    # Layer 2: Boxplot
+    sns.boxplot(
+        data=df, x=x, y=y, hue=hue, order=order, ax=ax,
+        palette=palette, showcaps=True,
+        whiskerprops={'linewidth':1.2}, **box_kwargs
+    )
+
+    # Layer 3: Scatter points
+    sns.stripplot(
+        data=df, x=x, y=y, hue=hue, order=order, ax=ax,
+        palette=palette, dodge=True if hue else False, **strip_kwargs
+    )
+
+    # Title and labels
+    ax.set_title(title, fontsize=14)
+    if xlabel: ax.set_xlabel(xlabel)
+    if ylabel: ax.set_ylabel(ylabel)
+
+    # Handle legend
+    if hue and show_legend:
+        handles, labels = plt.gca().get_legend_handles_labels()
+        ax.legend(handles[0:len(set(df[hue]))], labels[0:len(set(df[hue]))])
+    else:
+        ax.legend([], [], frameon=False)
+
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300)
+
+    # Return figure and axis if created within the function
+    if return_fig:
+        return fig, ax
+    else:
+        return ax

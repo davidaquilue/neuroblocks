@@ -25,8 +25,6 @@ def remove_outliers(list_results, percentiles=(5, 95), return_nan=True):
     Returns:
     - list: List with outliers either removed or replaced with np.nan.
     """
-    if not list_results:
-        return []
 
     arr = np.array(list_results, dtype=float)
 

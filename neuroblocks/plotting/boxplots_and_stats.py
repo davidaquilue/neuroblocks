@@ -165,6 +165,11 @@ def violin_box_scatter_plot(
     - show_legend: toggle legend
     - save_path: path to save the figure (str)
     """
+
+    # Sort by x values so that they keep same order at different boxplots
+    # independently of the data order
+    df = df.sort_values(by=x)
+
     sns.set(style="whitegrid")
 
     violin_kwargs = violin_kwargs or {

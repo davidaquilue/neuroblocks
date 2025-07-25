@@ -11,11 +11,89 @@ date = 24/07/2025
 import pandas as pd
 import numpy as np
 import scipy.stats as stats
-from statsmodels.stats.multitest import multipletests
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
 import scikit_posthocs as sp
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
+
+from scipy.stats import shapiro
+from statsmodels.stats.anova import anova_lm
+from statsmodels.stats.multitest import multipletests
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
+from statsmodels.stats.diagnostic import het_breuschpagan
+
+
+def ancova_with_assumption_checks(df, feature, group_col, covariates):
+    """
+    Performs ANCOVA with covariate binarization and checks key assumptions.
+
+    Parameters:
+        df (pd.DataFrame): Input data with group column, covariates, and feature.
+        feature (str): Dependent variable.
+        group_col (str): Categorical group variable (string-based is OK).
+        covariates (list): List of covariate names.
+
+    Returns:
+        anova_table (pd.DataFrame): ANCOVA table with assumption test summaries.
+    """
+
+    df = df.copy()
+
+    # Binarize non-numeric covariates
+    binarized_covariates = []
+    final_covariates = []
+
+    for cov in covariates:
+        if not np.issubdtype(df[cov].dtype, np.number):
+            dummies = pd.get_dummies(df[cov], prefix=cov, drop_first=True)
+            df = pd.concat([df.drop(columns=[cov]), dummies], axis=1)
+            binarized_covariates.extend(dummies.columns.tolist())
+        else:
+            final_covariates.append(cov)
+
+    final_covariates += binarized_covariates
+
+    # Fit ANCOVA model
+    formula = f"{feature} ~ C({group_col})" + "".join([f" + {cov}" for cov in final_covariates])
+    model = smf.ols(formula, data=df).fit()
+    anova_table = anova_lm(model, typ=2)
+
+    # Linearity check: Pearson correlation for all numeric covariates
+    linearity_corrs = {
+        cov: df[[cov, feature]].corr().iloc[0, 1]
+        for cov in final_covariates
+    }
+
+    # Homogeneity of regression slopes: test group * covariate interaction
+    interaction_terms = " + ".join([f"C({group_col}):{cov}" for cov in final_covariates])
+    formula_interaction = f"{feature} ~ C({group_col}) + " + " + ".join([f"{cov}" for cov in final_covariates]) + " + " + interaction_terms
+    model_interaction = smf.ols(formula_interaction, data=df).fit()
+    anova_interaction = anova_lm(model_interaction, typ=2)
+
+    slope_pvals = {
+        f"{group_col}:{cov}": anova_interaction.to_dict().get("PR(>F)", {}).get(
+            f"C({group_col}):{cov}", None)
+        for cov in final_covariates
+    }
+
+    # Normality of residuals
+    shapiro_p = shapiro(model.resid)[1]
+
+    # Homoscedasticity (Breusch-Pagan test)
+    exog = model.model.exog
+    bp_test = het_breuschpagan(model.resid, exog)
+    bp_pval = bp_test[1]
+
+    # Build assumption summary
+    anova_table["Assumptions"] = ""
+    summary_text = (
+        f"Linearity corr: {linearity_corrs} | "
+        f"Slope homogeneity p: {slope_pvals} | "
+        f"Shapiro p: {shapiro_p:.3f} | "
+        f"B-P p: {bp_pval:.3f}"
+    )
+    anova_table.loc[:, "Assumptions"] = summary_text
+
+    return anova_table
 
 
 def stat_tests_features(

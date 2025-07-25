@@ -23,19 +23,6 @@ from statsmodels.stats.diagnostic import het_breuschpagan
 
 
 def ancova_with_assumption_checks(df, feature, group_col, covariates):
-    """
-    Performs ANCOVA with covariate binarization and checks key assumptions.
-
-    Parameters:
-        df (pd.DataFrame): Input data with group column, covariates, and feature.
-        feature (str): Dependent variable.
-        group_col (str): Categorical group variable (string-based is OK).
-        covariates (list): List of covariate names.
-
-    Returns:
-        anova_table (pd.DataFrame): ANCOVA table with assumption test summaries.
-    """
-
     df = df.copy()
 
     # Binarize non-numeric covariates
@@ -56,6 +43,7 @@ def ancova_with_assumption_checks(df, feature, group_col, covariates):
     formula = f"{feature} ~ C({group_col})" + "".join([f" + {cov}" for cov in final_covariates])
     model = smf.ols(formula, data=df).fit()
     anova_table = anova_lm(model, typ=2)
+    p_value = anova_table.loc["C(group)", "PR(>F)"]
 
     # Linearity check: Pearson correlation for all numeric covariates
     linearity_corrs = {
@@ -83,17 +71,15 @@ def ancova_with_assumption_checks(df, feature, group_col, covariates):
     bp_test = het_breuschpagan(model.resid, exog)
     bp_pval = bp_test[1]
 
-    # Build assumption summary
-    anova_table["Assumptions"] = ""
-    summary_text = (
-        f"Linearity corr: {linearity_corrs} | "
+    # Combine assumption info
+    assumption_summary = (
+        f"Linearity: {linearity_corrs} | "
         f"Slope homogeneity p: {slope_pvals} | "
-        f"Shapiro p: {shapiro_p:.3f} | "
-        f"B-P p: {bp_pval:.3f}"
+        f"Shapiro-Wilk p: {shapiro_p:.3f} | "
+        f"Breusch-Pagan p: {bp_pval:.3f}"
     )
-    anova_table.loc[:, "Assumptions"] = summary_text
 
-    return anova_table
+    return p_value, "ANCOVA", assumption_summary
 
 
 def stat_tests_features(
@@ -129,15 +115,16 @@ def stat_tests_features(
     results = []
     posthoc_results = []
 
+    assumption_summary = None
     for feature in features:
-        if covariates:  # Linear model with covariates
-            formula = f"{feature} ~ C(group)" + "".join(
-                [f" + {cov}" for cov in covariates]
-            )
-            model = smf.ols(formula, data=df_features).fit()
-            anova_table = sm.stats.anova_lm(model, typ=2)
-            p_value = anova_table.loc["C(group)", "PR(>F)"]
-            test_name = "ANCOVA"
+        if covariates:
+            try:
+                p_value, test_name, assumption_summary = ancova_with_assumption_checks(
+                    df_features, feature, group_col="group", covariates=covariates
+                )
+            except Exception as e:
+                p_value, test_name, assumption_summary = np.nan, "ANCOVA (error)", str(e)
+
         else:  # Non-parametric or parametric test based on normality
             data_groups = [
                 df_features[df_features["group"] == g][feature].dropna() for g in groups
@@ -166,7 +153,7 @@ def stat_tests_features(
         effect_size = compute_effect_size(
             feature, df_features, groups, test_name, covariates
         )
-        results.append([feature, test_name, p_value, effect_size])
+        results.append([feature, test_name, p_value, effect_size, assumption_summary])
 
         # Post-hoc if needed
         if num_groups > 2 and not covariates and p_value < 0.05:
@@ -195,7 +182,7 @@ def stat_tests_features(
                             )
 
     results_df = pd.DataFrame(
-        results, columns=["Feature", "Test", "p-val", "Effect Size"]
+        results, columns=["Feature", "Test", "p-val", "Effect Size", "Assumptions"]
     )
     results_df["adj p-val"] = multipletests(results_df["p-val"], method="fdr_bh")[1]
 

@@ -18,29 +18,34 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
 
-def stat_tests_features(df_features, features="all", groups="all", covariates=None):
+def stat_tests_features(
+        df_features, features="all", groups="all", covariates=None, group_key="group"
+):
     """
     Perform statistical tests on EEG features across groups, with optional covariate correction.
 
     Parameters:
-    - df_features (pd.DataFrame): Must include 'sub', 'class', features, and optionally covariates.
+    - df_features (pd.DataFrame): Must include 'sub', group_key, features,
+        and optionally covariates.
     - features (list of str or "all"): Features to test.
-    - groups (list of str or "all"): Group labels to compare from 'class' column.
+    - groups (list of str or "all"): Group labels to compare from 'group' column.
     - covariates (list of str or None): List of covariate column names to control for.
+    - group_key (str or None): Column name to use for groups/class
 
     Returns:
     - results_df: DataFrame with test results and adjusted p-values.
     - posthoc_df (optional): If >2 groups, post-hoc test results.
     """
+    df_features = df_features.rename(columns={group_key: "group"})
     if features == "all":
         features = df_features.columns.difference(
-            ["sub", "class"] + (covariates if covariates else [])
+            ["sub", "group"] + (covariates if covariates else [])
         ).tolist()
 
     if groups == "all":
-        groups = df_features["class"].unique().tolist()
+        groups = df_features["group"].unique().tolist()
 
-    df_features = df_features[df_features["class"].isin(groups)].copy()
+    df_features = df_features[df_features["group"].isin(groups)].copy()
     num_groups = len(groups)
 
     results = []
@@ -48,16 +53,16 @@ def stat_tests_features(df_features, features="all", groups="all", covariates=No
 
     for feature in features:
         if covariates:  # Linear model with covariates
-            formula = f"{feature} ~ C(class)" + "".join(
+            formula = f"{feature} ~ C(group)" + "".join(
                 [f" + {cov}" for cov in covariates]
             )
             model = smf.ols(formula, data=df_features).fit()
             anova_table = sm.stats.anova_lm(model, typ=2)
-            p_value = anova_table.loc["C(class)", "PR(>F)"]
+            p_value = anova_table.loc["C(group)", "PR(>F)"]
             test_name = "ANCOVA"
         else:  # Non-parametric or parametric test based on normality
             data_groups = [
-                df_features[df_features["class"] == g][feature].dropna() for g in groups
+                df_features[df_features["group"] == g][feature].dropna() for g in groups
             ]
             normality_pvals = [
                 stats.shapiro(gr).pvalue for gr in data_groups if len(gr) >= 4
@@ -88,7 +93,7 @@ def stat_tests_features(df_features, features="all", groups="all", covariates=No
         # Post-hoc if needed
         if num_groups > 2 and not covariates and p_value < 0.05:
             if test_name == "ANOVA":
-                posthoc = pairwise_tukeyhsd(df_features[feature], df_features["class"])
+                posthoc = pairwise_tukeyhsd(df_features[feature], df_features["group"])
                 for i in range(len(posthoc.groupsunique)):
                     for j in range(i + 1, len(posthoc.groupsunique)):
                         group1 = posthoc.groupsunique[i]
@@ -102,7 +107,7 @@ def stat_tests_features(df_features, features="all", groups="all", covariates=No
                         )
             elif test_name == "Kruskal-Wallis":
                 posthoc = sp.posthoc_dunn(
-                    df_features, val_col=feature, group_col="class", p_adjust="fdr_bh"
+                    df_features, val_col=feature, group_col="group", p_adjust="fdr_bh"
                 )
                 for g1 in posthoc.index:
                     for g2 in posthoc.columns:
@@ -129,7 +134,7 @@ def stat_tests_features(df_features, features="all", groups="all", covariates=No
 
 
 def compute_effect_size(
-    feature, df_data, groups, test_name, covariates=None, group_key="class"
+    feature, df_data, groups, test_name, covariates=None, group_key="group"
 ):
     """
     Computes different effect size metrics based on the statistical test applied.
@@ -142,12 +147,12 @@ def compute_effect_size(
         test_name: Statistical test that has been used to compute p-value, so that
         effect size is adapted to the test.
         covariates: Whether we want to use some of the columns in df as covariates.
-        group_key: Key for the "groups" column, defaults to "class".
+        group_key: Key for the "groups" column, defaults to "group".
     """
 
-    # We rename the group key to class so that we can apply it independently of key
-    df_data = df_data.rename(columns={group_key: "class"})
-    data_groups = [df_data[df_data["class"] == g][feature].dropna() for g in groups]
+    # We rename the group key to group so that we can apply it independently of key
+    df_data = df_data.rename(columns={group_key: "group"})
+    data_groups = [df_data[df_data["group"] == g][feature].dropna() for g in groups]
 
     if test_name == "t-test":
         group1, group2 = data_groups
@@ -167,14 +172,14 @@ def compute_effect_size(
 
     elif test_name in ["ANOVA", "ANCOVA"]:
         if covariates:
-            formula = f"{feature} ~ C(class)" + "".join(
+            formula = f"{feature} ~ C(group)" + "".join(
                 [f" + {cov}" for cov in covariates]
             )
         else:
-            formula = f"{feature} ~ C(class)"
+            formula = f"{feature} ~ C(group)"
         model = smf.ols(formula, data=df_data).fit()
         anova_table = sm.stats.anova_lm(model, typ=2)
-        ss_between = anova_table.loc["C(class)", "sum_sq"]
+        ss_between = anova_table.loc["C(group)", "sum_sq"]
         ss_total = anova_table["sum_sq"].sum()
         eta_squared = ss_between / ss_total
         return eta_squared

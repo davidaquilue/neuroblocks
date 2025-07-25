@@ -101,6 +101,7 @@ def stat_tests_features(
     - posthoc_df (optional): If >2 groups, post-hoc test results.
     """
     df_features = df_features.rename(columns={group_key: "group"})
+    df_features = df_features.sort_values(by="group")
     if features == "all":
         features = df_features.columns.difference(
             ["sub", "group"] + (covariates if covariates else [])

@@ -266,21 +266,30 @@ def add_stat_annotation(
     groups = order if order else sorted(df[x].unique())
     group_pos = {group: i for i, group in enumerate(groups)}
 
-    # Determine max y value to place annotation lines
-    max_y = df[y].max()
-    line_spacing = y_offset * max_y
-    used_positions = []
+    # Filter and sort comparisons by group distance
+    df_plot["group_pair"] = df_plot.apply(
+        lambda row: tuple(sorted([row["Group 1"], row["Group 2"]])), axis=1
+    )
+    df_plot = df_plot.drop_duplicates(subset="group_pair")
 
-    for i, row in df_plot.iterrows():
-        g1, g2, pval = row["Group 1"], row["Group 2"], row["adj p-val"]
-        x1, x2 = group_pos[g1], group_pos[g2]
-        y_start = max_y + line_spacing * len(used_positions)
-        used_positions.append((g1, g2))
+    df_plot["x1"] = df_plot["Group 1"].map(group_pos)
+    df_plot["x2"] = df_plot["Group 2"].map(group_pos)
+    df_plot["distance"] = abs(df_plot["x1"] - df_plot["x2"])
+    df_plot = df_plot.sort_values("distance")  # shorter distances first
+
+    max_y = df[y].max()
+    # Settings for spacing
+    bar_height = 0.015 * max_y  # height of the vertical lines
+    text_gap = 0 * max_y  # space between top of bar and asterisk
+
+    for i, row in enumerate(df_plot.itertuples(index=False)):
+        x1, x2 = sorted([row.x1, row.x2])
+        base_y = max_y + i * (bar_height + text_gap + 3*bar_height) # base for this bar
+        top_y = base_y + bar_height
+        pval = row[df_plot.columns.get_loc("adj p-val")]
 
         # Draw line
-        ax.plot([x1, x1, x2, x2],
-                [y_start, y_start + line_spacing, y_start + line_spacing, y_start],
-                lw=1.2, c='k')
+        ax.plot([x1, x1, x2, x2], [base_y, top_y, top_y, base_y], lw=1.2, c='k')
 
         # Determine asterisk label
         if pval < 0.0001:
@@ -296,8 +305,8 @@ def add_stat_annotation(
 
         # Place text
         ax.text(
-            (x1 + x2) / 2, y_start + line_spacing + 0.01 * max_y,
-            star, ha='center', va='bottom', color='k', fontsize=12
+            (x1 + x2) / 2, top_y + text_gap,
+            star, ha='center', va='baseline', color='k', fontsize=12
         )
 
     # Optionally annotate the test name

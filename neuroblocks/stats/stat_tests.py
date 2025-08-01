@@ -163,10 +163,16 @@ def stat_tests_features(
         if num_groups > 2 and not covariates and p_value < 0.05:
             if test_name == "ANOVA":
                 posthoc = pairwise_tukeyhsd(df_features[feature], df_features["group"])
+                seen_pairs = set()
                 for i in range(len(posthoc.groupsunique)):
                     for j in range(i + 1, len(posthoc.groupsunique)):
                         group1 = posthoc.groupsunique[i]
                         group2 = posthoc.groupsunique[j]
+                        pair = tuple(sorted((group1, group2)))
+                        if pair in seen_pairs:
+                            continue
+                        seen_pairs.add(pair)
+
                         idx = (
                             i * len(posthoc.groupsunique) + j - ((i + 1) * (i + 2)) // 2
                         )
@@ -178,12 +184,20 @@ def stat_tests_features(
                 posthoc = sp.posthoc_dunn(
                     df_features, val_col=feature, group_col="group", p_adjust="fdr_bh"
                 )
+                seen_pairs = set()
                 for g1 in posthoc.index:
                     for g2 in posthoc.columns:
-                        if g1 != g2:
-                            posthoc_results.append(
-                                [feature, "Dunn's Test", g1, g2, posthoc.loc[g1, g2]]
-                            )
+                        if g1 == g2:
+                            continue
+                        pair = tuple(sorted((g1, g2)))
+                        if pair in seen_pairs:
+                            continue
+                        seen_pairs.add(pair)
+
+                        posthoc_results.append(
+                            [feature, "Dunn's Test", g1, g2, posthoc.loc[g1, g2]]
+                        )
+
     group_cols = [f"Group {i+1}" for i in range(num_groups)]
     results_df = pd.DataFrame(
         results,

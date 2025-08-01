@@ -154,7 +154,10 @@ def stat_tests_features(
         effect_size = compute_effect_size(
             feature, df_features, groups, test_name, covariates
         )
-        results.append([feature, test_name, p_value, effect_size, assumption_summary])
+        # We add the groups as well
+        results.append(
+            [feature, test_name, p_value, effect_size, assumption_summary] + groups
+        )
 
         # Post-hoc if needed
         if num_groups > 2 and not covariates and p_value < 0.05:
@@ -181,9 +184,10 @@ def stat_tests_features(
                             posthoc_results.append(
                                 [feature, "Dunn's Test", g1, g2, posthoc.loc[g1, g2]]
                             )
-
+    group_cols = [f"Group {i+1}" for i in range(num_groups)]
     results_df = pd.DataFrame(
-        results, columns=["Feature", "Test", "p-val", "Effect Size", "Assumptions"]
+        results,
+        columns=["Feature", "Test", "p-val", "Effect Size", "Assumptions"] + group_cols
     )
     results_df["adj p-val"] = multipletests(results_df["p-val"], method="fdr_bh")[1]
 

@@ -41,9 +41,8 @@ def boxplot_with_stats(
         # Plot boxplot
         fig, ax = plt.subplots(1, 1, figsize=(10, 6))
 
-    violin_box_scatter_plot(
-        data, x=group_col, y=value_col, ax=ax, hue=group_col, **plot_kwargs
-    )
+    violin_box_scatter_plot(data, x=group_col, y=value_col, hue=group_col, ax=ax,
+                            **plot_kwargs)
 
     # Global test
     if method == "auto":
@@ -146,6 +145,7 @@ def violin_box_scatter_plot(
     ylabel: str = None,
     show_legend: bool = True,
     save_path: str = None,
+    df_stats=None,
     ax=None,
 ):
     """
@@ -163,6 +163,9 @@ def violin_box_scatter_plot(
     - title: plot title
     - xlabel, ylabel: axis labels
     - show_legend: toggle legend
+    - stats_df: pandas DataFrame containing the results from
+        neuroblocks.stats.stat_tests.stat_tests_features. Can be the results from anova
+        (if only two groups) or from posthoc tests if more than two groups.
     - save_path: path to save the figure (str)
     """
 
@@ -211,6 +214,10 @@ def violin_box_scatter_plot(
     if xlabel: ax.set_xlabel(xlabel)
     if ylabel: ax.set_ylabel(ylabel)
 
+    # Add statistics if stats_df is passed
+    if df_stats is not None:
+        add_stat_annotation(ax, df, x, y, df_stats, y, order=order)
+
     # Handle legend
     if hue and show_legend:
         handles, labels = plt.gca().get_legend_handles_labels()
@@ -228,3 +235,74 @@ def violin_box_scatter_plot(
         return fig, ax
     else:
         return ax
+
+
+def add_stat_annotation(
+        ax, df, x, y, posthoc_df, feature, order=None, test_name=None, y_offset=0.05
+):
+    """
+    Add statistical annotation to a plot from posthoc_df.
+
+    Parameters:
+    - ax: matplotlib axis to annotate
+    - df: dataframe used for the plot
+    - x, y: column names used for plotting
+    - posthoc_df: output from stat_tests_features (posthoc results)
+    - feature: which feature's comparisons to annotate
+    - order: custom x-axis order
+    - test_name: optional, string to display above significance bars
+    - y_offset: fraction of max(y) to use for spacing annotations vertically
+    """
+    if posthoc_df is None or posthoc_df.empty:
+        return
+
+    # Filter posthoc_df for this specific feature
+    df_plot = posthoc_df[posthoc_df["Feature"] == feature]
+
+    if df_plot.empty:
+        return
+
+    # Determine position of each group on the x-axis
+    groups = order if order else sorted(df[x].unique())
+    group_pos = {group: i for i, group in enumerate(groups)}
+
+    # Determine max y value to place annotation lines
+    max_y = df[y].max()
+    line_spacing = y_offset * max_y
+    used_positions = []
+
+    for i, row in df_plot.iterrows():
+        g1, g2, pval = row["Group 1"], row["Group 2"], row["adj p-val"]
+        x1, x2 = group_pos[g1], group_pos[g2]
+        y_start = max_y + line_spacing * len(used_positions)
+        used_positions.append((g1, g2))
+
+        # Draw line
+        ax.plot([x1, x1, x2, x2],
+                [y_start, y_start + line_spacing, y_start + line_spacing, y_start],
+                lw=1.2, c='k')
+
+        # Determine asterisk label
+        if pval < 0.0001:
+            star = '****'
+        elif pval < 0.001:
+            star = '***'
+        elif pval < 0.01:
+            star = '**'
+        elif pval < 0.05:
+            star = '*'
+        else:
+            star = 'ns'
+
+        # Place text
+        ax.text(
+            (x1 + x2) / 2, y_start + line_spacing + 0.01 * max_y,
+            star, ha='center', va='bottom', color='k', fontsize=12
+        )
+
+    # Optionally annotate the test name
+    if test_name:
+        ax.text(
+            0.5, 1.02, test_name, ha='center', va='bottom', transform=ax.transAxes, fontsize=10, style='italic'
+        )
+

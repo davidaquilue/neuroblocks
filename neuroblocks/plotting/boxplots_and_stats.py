@@ -14,7 +14,7 @@ import statsmodels.api as sm
 
 
 def boxplot_with_stats(
-        data, group_col, value_col, method="auto", ax=None, title="", **plot_kwargs
+    data, group_col, value_col, method="auto", ax=None, title="", **plot_kwargs
 ):
     """
     Plots boxplots of a continuous variable grouped by a categorical variable,
@@ -41,8 +41,9 @@ def boxplot_with_stats(
         # Plot boxplot
         fig, ax = plt.subplots(1, 1, figsize=(10, 6))
 
-    violin_box_scatter_plot(data, x=group_col, y=value_col, hue=group_col, ax=ax,
-                            **plot_kwargs)
+    violin_box_scatter_plot(
+        data, x=group_col, y=value_col, hue=group_col, ax=ax, **plot_kwargs
+    )
 
     # Global test
     if method == "auto":
@@ -175,14 +176,13 @@ def violin_box_scatter_plot(
 
     sns.set(style="whitegrid")
 
-    violin_kwargs = violin_kwargs or {
-        "inner": None, "linewidth": 1, "alpha": 0.6
-    }
-    box_kwargs = box_kwargs or {
-        "width": 0.1, "fliersize": 0, "linewidth": 1.2
-    }
+    violin_kwargs = violin_kwargs or {"inner": None, "linewidth": 1, "alpha": 0.6}
+    box_kwargs = box_kwargs or {"width": 0.1, "fliersize": 0, "linewidth": 1.2}
     strip_kwargs = strip_kwargs or {
-        "jitter": 0.2, "size": 3, "alpha": 0.5, "linewidth": 0.3
+        "jitter": 0.2,
+        "size": 3,
+        "alpha": 0.5,
+        "linewidth": 0.3,
     }
 
     return_fig = False
@@ -192,27 +192,42 @@ def violin_box_scatter_plot(
 
     # Layer 1: Violin plot
     sns.violinplot(
-        data=df, x=x, y=y, hue=hue, order=order, ax=ax,
-        palette=palette, **violin_kwargs
+        data=df, x=x, y=y, hue=hue, order=order, ax=ax, palette=palette, **violin_kwargs
     )
 
     # Layer 2: Boxplot
     sns.boxplot(
-        data=df, x=x, y=y, hue=hue, order=order, ax=ax,
-        palette=palette, showcaps=True,
-        whiskerprops={'linewidth':1.2}, **box_kwargs
+        data=df,
+        x=x,
+        y=y,
+        hue=hue,
+        order=order,
+        ax=ax,
+        palette=palette,
+        showcaps=True,
+        whiskerprops={"linewidth": 1.2},
+        **box_kwargs,
     )
 
     # Layer 3: Scatter points
     sns.stripplot(
-        data=df, x=x, y=y, hue=hue, order=order, ax=ax,
-        palette=palette, dodge=True if hue else False, **strip_kwargs
+        data=df,
+        x=x,
+        y=y,
+        hue=hue,
+        order=order,
+        ax=ax,
+        palette=palette,
+        dodge=True if hue else False,
+        **strip_kwargs,
     )
 
     # Title and labels
     ax.set_title(title, fontsize=14)
-    if xlabel: ax.set_xlabel(xlabel)
-    if ylabel: ax.set_ylabel(ylabel)
+    if xlabel:
+        ax.set_xlabel(xlabel)
+    if ylabel:
+        ax.set_ylabel(ylabel)
 
     # Add statistics if stats_df is passed
     if df_stats is not None:
@@ -221,7 +236,7 @@ def violin_box_scatter_plot(
     # Handle legend
     if hue and show_legend:
         handles, labels = plt.gca().get_legend_handles_labels()
-        ax.legend(handles[0:len(set(df[hue]))], labels[0:len(set(df[hue]))])
+        ax.legend(handles[0 : len(set(df[hue]))], labels[0 : len(set(df[hue]))])
     else:
         ax.legend([], [], frameon=False)
 
@@ -238,7 +253,7 @@ def violin_box_scatter_plot(
 
 
 def add_stat_annotation(
-        ax, df, x, y, posthoc_df, feature, order=None, test_name=None, y_offset=0.05
+    ax, df, x, y, posthoc_df, feature, order=None, test_name=None, y_offset=0.05
 ):
     """
     Add statistical annotation to a plot from posthoc_df.
@@ -284,34 +299,47 @@ def add_stat_annotation(
 
     for i, row in enumerate(df_plot.itertuples(index=False)):
         x1, x2 = sorted([row.x1, row.x2])
-        base_y = max_y + i * (bar_height + text_gap + 3*bar_height) # base for this bar
+        base_y = max_y + i * (
+            bar_height + text_gap + 3 * bar_height
+        )  # base for this bar
         top_y = base_y + bar_height
         pval = row[df_plot.columns.get_loc("adj p-val")]
 
         # Draw line
-        ax.plot([x1, x1, x2, x2], [base_y, top_y, top_y, base_y], lw=1.2, c='k')
+        ax.plot([x1, x1, x2, x2], [base_y, top_y, top_y, base_y], lw=1.2, c="k")
 
         # Determine asterisk label
         if pval < 0.0001:
-            star = '****'
+            star = "****"
         elif pval < 0.001:
-            star = '***'
+            star = "***"
         elif pval < 0.01:
-            star = '**'
+            star = "**"
         elif pval < 0.05:
-            star = '*'
+            star = "*"
         else:
-            star = 'ns'
+            star = "ns"
 
         # Place text
         ax.text(
-            (x1 + x2) / 2, top_y + text_gap,
-            star, ha='center', va='baseline', color='k', fontsize=12
+            (x1 + x2) / 2,
+            top_y + text_gap,
+            star,
+            ha="center",
+            va="baseline",
+            color="k",
+            fontsize=12,
         )
 
     # Optionally annotate the test name
     if test_name:
         ax.text(
-            0.5, 1.02, test_name, ha='center', va='bottom', transform=ax.transAxes, fontsize=10, style='italic'
+            0.5,
+            1.02,
+            test_name,
+            ha="center",
+            va="bottom",
+            transform=ax.transAxes,
+            fontsize=10,
+            style="italic",
         )
-

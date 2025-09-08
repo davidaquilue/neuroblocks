@@ -40,26 +40,35 @@ def ancova_with_assumption_checks(df, feature, group_col, covariates):
     final_covariates += binarized_covariates
 
     # Fit ANCOVA model
-    formula = f"{feature} ~ C({group_col})" + "".join([f" + {cov}" for cov in final_covariates])
+    formula = f"{feature} ~ C({group_col})" + "".join(
+        [f" + {cov}" for cov in final_covariates]
+    )
     model = smf.ols(formula, data=df).fit()
     anova_table = anova_lm(model, typ=2)
     p_value = anova_table.loc["C(group)", "PR(>F)"]
 
     # Linearity check: Pearson correlation for all numeric covariates
     linearity_corrs = {
-        cov: df[[cov, feature]].corr().iloc[0, 1]
-        for cov in final_covariates
+        cov: df[[cov, feature]].corr().iloc[0, 1] for cov in final_covariates
     }
 
     # Homogeneity of regression slopes: test group * covariate interaction
-    interaction_terms = " + ".join([f"C({group_col}):{cov}" for cov in final_covariates])
-    formula_interaction = f"{feature} ~ C({group_col}) + " + " + ".join([f"{cov}" for cov in final_covariates]) + " + " + interaction_terms
+    interaction_terms = " + ".join(
+        [f"C({group_col}):{cov}" for cov in final_covariates]
+    )
+    formula_interaction = (
+        f"{feature} ~ C({group_col}) + "
+        + " + ".join([f"{cov}" for cov in final_covariates])
+        + " + "
+        + interaction_terms
+    )
     model_interaction = smf.ols(formula_interaction, data=df).fit()
     anova_interaction = anova_lm(model_interaction, typ=2)
 
     slope_pvals = {
-        f"{group_col}:{cov}": anova_interaction.to_dict().get("PR(>F)", {}).get(
-            f"C({group_col}):{cov}", None)
+        f"{group_col}:{cov}": anova_interaction.to_dict()
+        .get("PR(>F)", {})
+        .get(f"C({group_col}):{cov}", None)
         for cov in final_covariates
     }
 
@@ -83,7 +92,7 @@ def ancova_with_assumption_checks(df, feature, group_col, covariates):
 
 
 def stat_tests_features(
-        df_features, features="all", groups="all", covariates=None, group_key="group"
+    df_features, features="all", groups="all", covariates=None, group_key="group"
 ):
     """
     Perform statistical tests on EEG features across groups, with optional covariate correction.
@@ -124,7 +133,11 @@ def stat_tests_features(
                     df_features, feature, group_col="group", covariates=covariates
                 )
             except Exception as e:
-                p_value, test_name, assumption_summary = np.nan, "ANCOVA (error)", str(e)
+                p_value, test_name, assumption_summary = (
+                    np.nan,
+                    "ANCOVA (error)",
+                    str(e),
+                )
 
         else:  # Non-parametric or parametric test based on normality
             data_groups = [
@@ -154,9 +167,18 @@ def stat_tests_features(
         effect_size = compute_effect_size(
             feature, df_features, groups, test_name, covariates
         )
+        eff_size_metric = get_effect_size_metric(test_name)
         # We add the groups as well
         results.append(
-            [feature, test_name, p_value, effect_size, assumption_summary] + groups
+            [
+                feature,
+                test_name,
+                p_value,
+                eff_size_metric,
+                effect_size,
+                assumption_summary,
+            ]
+            + groups
         )
 
         # Post-hoc if needed
@@ -198,10 +220,18 @@ def stat_tests_features(
                             [feature, "Dunn's Test", g1, g2, posthoc.loc[g1, g2]]
                         )
 
-    group_cols = [f"Group {i+1}" for i in range(num_groups)]
+    group_cols = [f"Group {i + 1}" for i in range(num_groups)]
     results_df = pd.DataFrame(
         results,
-        columns=["Feature", "Test", "p-val", "Effect Size", "Assumptions"] + group_cols
+        columns=[
+            "Feature",
+            "Test",
+            "p-val",
+            "Effect Size",
+            "Effect Size Metric",
+            "Assumptions",
+        ]
+        + group_cols,
     )
     results_df["adj p-val"] = multipletests(results_df["p-val"], method="fdr_bh")[1]
 
@@ -275,3 +305,14 @@ def compute_effect_size(
         return epsilon_squared
 
     return np.nan
+
+
+def get_effect_size_metric(test_name):
+    dict_eff_size_metrics = {
+        "t-test": "d",
+        "Mann-Whitney U": "r",
+        "ANOVA": "eta_squared",
+        "ANCOVA": "eta_squared",
+        "Kruskal-Wallis": "epsilon_squared",
+    }
+    return dict_eff_size_metrics[test_name]

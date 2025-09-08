@@ -227,8 +227,8 @@ def stat_tests_features(
             "Feature",
             "Test",
             "p-val",
-            "Effect Size",
             "Effect Size Metric",
+            "Effect Size",
             "Assumptions",
         ]
         + group_cols,

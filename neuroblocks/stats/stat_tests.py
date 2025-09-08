@@ -279,10 +279,22 @@ def compute_effect_size(
         return d
 
     elif test_name == "Mann-Whitney U":
-        u, _ = stats.mannwhitneyu(*data_groups, alternative="two-sided")
-        n1, n2 = len(data_groups[0]), len(data_groups[1])
-        r = 1 - (2 * u) / (n1 * n2)
-        return r  # Rank-biserial correlation
+        group1, group2 = data_groups
+        n1, n2 = len(group1), len(group2)
+
+        # U statistic (SciPy gives U for group1 vs group2)
+        u, _ = stats.mannwhitneyu(group1, group2, alternative="two-sided")
+
+        # Get the smaller of U and its complement
+        u2 = n1 * n2 - u
+        u_min = min(u, u2)
+
+        # Compute absolute rank-biserial effect size
+        r_abs = 1 - (2 * u_min) / (n1 * n2)
+
+        # Assign sign to match Cohen’s d direction (mean difference)
+        r = np.sign(np.mean(group1) - np.mean(group2)) * abs(r_abs)
+        return r
 
     elif test_name in ["ANOVA", "ANCOVA"]:
         if covariates:

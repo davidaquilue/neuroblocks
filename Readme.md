@@ -19,15 +19,15 @@ These are straightforward, will be further documented as the pipeline grows.
 - `pipelines`:  
 - `feature_extraction`:
 - `plotting`:
+- `atlasses`: Contains a series of atlases images for different useful parcellations that we will 
+use throughout our work
  
 
 ### tests
 The `studies` folder contains a set of subfolders, each of them containing 
 the scripts used to compute and analyze results in different studies.
 
-### atlasses
-Contains a series of atlases images for different useful parcellations that we will 
-use throughout our work
+### Included atlasses
 
 Currently implemented parcellations are the following:
 - SchaeferN (N=100, 200, 400, 1000)

@@ -26,7 +26,7 @@ def pet_suvr_to_centiloid(suvr_pet_path, suvr_to_cl_expr):
     :return: float of CL value for the scan.
     """
     # Load the cortical VOI from GAAIN to account for avg SUVR in ROI
-    path_ctx = Path(__file__).parent / ".." / ".." / "atlases/CL_voi_ctx_2mm.nii"
+    path_ctx = Path(__file__).parent / ".." / "atlases/CL_voi_ctx_2mm.nii"
     ctx_voi_img = nib.load(path_ctx)
 
     # Load PET data

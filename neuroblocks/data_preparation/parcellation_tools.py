@@ -49,7 +49,6 @@ def get_parcellater(parcellation_str):
         glasser_path = (
             Path(__file__).parent
             / ".."
-            / ".."
             / "atlases"
             / "Glasser"
             / "glasser_MNI152NLin6Asym_labels_p20.nii.gz"
@@ -60,7 +59,6 @@ def get_parcellater(parcellation_str):
     elif "DBS80" in parcellation_str:
         dbs_path = (
             Path(__file__).parent
-            / ".."
             / ".."
             / "atlases"
             / "DBS80"
@@ -101,7 +99,6 @@ def get_parcellation_nifti(parcellation_str):
         glasser_path = (
             Path(__file__).parent
             / ".."
-            / ".."
             / "atlases"
             / "Glasser"
             / "glasser_MNI152NLin6Asym_labels_p20.nii.gz"
@@ -111,7 +108,6 @@ def get_parcellation_nifti(parcellation_str):
     elif "DBS80" in parcellation_str:
         dbs_path = (
             Path(__file__).parent
-            / ".."
             / ".."
             / "atlases"
             / "DBS80"

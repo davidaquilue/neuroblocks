@@ -107,7 +107,7 @@ def compute_metaroi_avg_value(
     atlas_img = resample_to_img(atlas_img, img, interpolation="nearest")
     # Once resampled obtain array data
     atlas_arr = atlas_img.get_fdata().astype(int)
-    vol_arr = img.get_fdata().astype(int)
+    vol_arr = img.get_fdata()
     # Compute mean/median SUVRs for each fo the SUVRs
     rois_values = []
     for atlas_label in atlas_labels:

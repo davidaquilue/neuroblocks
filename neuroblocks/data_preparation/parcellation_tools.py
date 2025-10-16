@@ -66,6 +66,16 @@ def get_parcellater(parcellation_str):
         ).resolve()
         parcellater = Parcellater(dbs_path, "MNI152")
         file_ext = "DBS80"
+    elif "DesikanKilliany" in parcellation_str:
+        dk_path = (
+                Path(__file__).parent
+                / ".."
+                / "atlases"
+                / "DesikanKilliany"
+                / "atlas-desikankilliany.nii.gz"
+        ).resolve()
+        parcellater = Parcellater(dk_path, "MNI152")
+        file_ext = "DK"
     else:
         raise ValueError("Parcellation type is not integrated in get_parcellater")
 
@@ -114,6 +124,15 @@ def get_parcellation_nifti(parcellation_str):
             / "dbs80symm_2mm.nii.gz"
         ).resolve()
         parcellation_nifti = nib.load(dbs_path)
+    elif "DesikanKilliany" in parcellation_str:
+        dk_path = (
+                Path(__file__).parent
+                / ".."
+                / "atlases"
+                / "DesikanKilliany"
+                / "atlas-desikankilliany.nii.gz"
+        ).resolve()
+        parcellation_nifti = nib.load(dk_path)
     else:
         raise ValueError("Parcellation is not integrated in get_parcellation_nifti")
 

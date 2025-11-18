@@ -16,10 +16,12 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
 from scipy.stats import shapiro
+from sklearn.utils import shuffle
 from statsmodels.stats.anova import anova_lm
 from statsmodels.stats.multitest import multipletests
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from statsmodels.stats.diagnostic import het_breuschpagan
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 
 def ancova_with_assumption_checks(df, feature, group_col, covariates):
@@ -89,6 +91,183 @@ def ancova_with_assumption_checks(df, feature, group_col, covariates):
     )
 
     return p_value, "ANCOVA", assumption_summary
+
+
+def permutation_ancova(
+        df,
+        feature,
+        effect_term,
+        covariates,
+        n_perm=10000,
+        random_state=0,
+        group_key="group",
+        verbose=True
+):
+    """
+    Robust permutation ANCOVA using the Freedman–Lane method.
+    Returns parametric F, permutation p-value, assumption checks, and effect sizes.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input data.
+    feature : str
+        Dependent variable.
+    effect_term : str
+        Term to test (e.g., 'C(group)' or 'C(group):C(dataset)').
+    covariates : list
+        Covariate column names.
+    n_perm : int
+        Number of permutations.
+    random_state : int
+        Seed.
+    group_key : str
+        Group column name.
+    verbose : bool
+        Print assumption checks.
+
+    Returns
+    -------
+    dict
+        {
+            "F_obs": float,
+            "p_parametric": float,
+            "p_permutation": float,
+            "F_null": np.ndarray,
+            "assumptions": dict,
+            "partial_eta2": float,
+            "cohen_d_residual": float
+        }
+
+    References
+    ----------
+    Freedman & Lane (1983). A nonstochastic interpretation of reported significance levels.
+    Winkler et al. (2014). Permutation inference for the general linear model. NeuroImage.
+    """
+    df = df.copy()
+
+    # Build formula strings
+    cov_terms = []
+    for c in covariates:
+        if df[c].dtype.name == 'category' or df[c].dtype == object:
+            cov_terms.append(f"C({c})")
+        else:
+            cov_terms.append(c)
+    cov_formula = " + ".join(cov_terms)
+
+    # FULL MODEL includes effect term
+    formula_full = f"{feature} ~ {effect_term} + {cov_formula}"
+
+    # REDUCED MODEL excludes effect term (for Freedman–Lane)
+    formula_reduced = f"{feature} ~ {cov_formula}"
+
+    # ----------- FIT FULL MODEL -----------
+    # Change ancova type if we have interaction (e.g. C(group):C(dataset))
+    ancova_type = 3 if len(effect_term.split(":")) > 1 else 2
+    model_full = smf.ols(formula_full, data=df).fit(cov_type="HC3")
+    anova_full = anova_lm(model_full, typ=ancova_type)
+
+    # Parametric F and p-value
+    F_obs = anova_full.loc[effect_term, "F"]
+    p_param = anova_full.loc[effect_term, "PR(>F)"]
+
+    # Partial eta squared
+    ss_effect = anova_full.loc[effect_term, "sum_sq"]
+    ss_resid = anova_full.loc["Residual", "sum_sq"]
+    partial_eta2 = ss_effect / (ss_effect + ss_resid)
+
+    # Cohen's d on residuals (residualize DV wrt covariates)
+    model_reduced = smf.ols(formula_reduced, data=df).fit()
+    resid_adj = df[feature] - model_reduced.fittedvalues
+    # Extract groups for effect_term
+    groups = df[group_key]
+    group_vals = [resid_adj[groups == g].values for g in np.unique(groups)]
+    if len(group_vals) == 2:
+        # pooled SD
+        sd_pooled = np.sqrt(
+            (np.var(group_vals[0], ddof=1) + np.var(group_vals[1], ddof=1)) / 2)
+        cohen_d_resid = (np.mean(group_vals[1]) - np.mean(group_vals[0])) / sd_pooled
+    else:
+        cohen_d_resid = np.nan  # cannot compute d for >2 levels
+
+    # ------------------ Assumption checks ------------------
+    assumptions = {}
+
+    # Normality
+    shapiro_p = shapiro(model_full.resid)[1]
+    assumptions["Normality (Shapiro)"] = shapiro_p
+
+    # Homoscedasticity
+    bp_p = het_breuschpagan(model_full.resid, model_full.model.exog)[1]
+    assumptions["Homoscedasticity (Breusch_Pagan)"] = bp_p
+
+    # Linearity (Pearson correlation with numeric covariates)
+    lin_dict = {}
+    for c in covariates:
+        if np.issubdtype(df[c].dtype, np.number):
+            lin_dict[c] = df[[c, feature]].corr().iloc[0, 1]
+    assumptions["Linearity (r with DV)"] = lin_dict
+
+    # VIF for multicollinearity
+    vif_df = pd.DataFrame()
+    vif_df["term"] = model_full.model.exog_names
+    vif_df["VIF"] = [
+        variance_inflation_factor(model_full.model.exog, i)
+        for i in range(model_full.model.exog.shape[1])
+    ]
+    assumptions["Multicollinearity (VIF)"] = vif_df
+
+    # Group × covariate interactions to check slope homogeneity
+    slope_dict = {}
+    for c in covariates:
+        test_formula = f"{feature} ~ {effect_term}*{c} + {' + '.join([cov for cov in cov_terms if cov != c])}"
+        model_slope = smf.ols(test_formula, data=df).fit()
+        anova_slope = anova_lm(model_slope, typ=ancova_type)
+        term = f"{effect_term}:{c}"
+        if term in anova_slope.index:
+            slope_dict[term] = anova_slope.loc[term, "PR(>F)"]
+    assumptions["Homogeneity of Slopes (interaction p_values)"] = slope_dict
+
+    # Print summary
+    if verbose:
+        print("\n--- ANCOVA Assumption Check ---")
+        for k, v in assumptions.items():
+            print(f"{k}: {v}")
+
+    # ------------------ Freedman-Lane Permutation ------------------
+    resid_reduced = model_reduced.resid.values
+    fitted_reduced = model_reduced.fittedvalues.values
+    F_null = np.zeros(n_perm)
+    # Set random seed once
+    np.random.seed(random_state)
+
+    for i in range(n_perm):
+        # Let shuffle use its own random state (None = truly random each iteration)
+        perm_resid = shuffle(resid_reduced, random_state=None)
+
+        # Create permuted y values
+        y_perm = fitted_reduced + perm_resid
+
+        # Fit model on permuted data
+        df_perm = df.copy()
+        df_perm["_y_perm"] = y_perm
+
+        model_perm = smf.ols(f"_y_perm ~ {effect_term} + {cov_formula}", data=df_perm).fit()
+        anova_perm = anova_lm(model_perm, typ=ancova_type)
+
+        F_null[i] = anova_perm.loc[effect_term, "F"]
+
+    p_perm = (np.sum(F_null >= F_obs) + 1) / (n_perm + 1)
+
+    return {
+        "F_obs": F_obs,
+        "p_parametric": p_param,
+        "p_permutation": p_perm,
+        "F_null": F_null,
+        "assumptions": assumptions,
+        "partial_eta2": partial_eta2,
+        "cohen_d_residual": cohen_d_resid
+    }
 
 
 def stat_tests_features(

@@ -56,6 +56,7 @@ def plot_surface_from_parcellation(
     hemisphere="right",
     surf_ice_dir=None,
     show_colorbar=False,
+    colorbar_position=1
 ):
     # Get volume image from parcellation
     vol_img = parcellation_to_volume(parcellation_values, parcellation_str)
@@ -79,7 +80,9 @@ def plot_surface_from_parcellation(
         else:
             raise ValueError("vminmax must be a tuple (vmin, vmax)")
     if show_colorbar:
-        surfice_script += "gl.colorbarvisible(1)\n"
+        surfice_script += f"gl.colorbarvisible(1)\n"
+        surfice_script += f"gl.colorbarposition({colorbar_position})\n"
+
     else:
         surfice_script += "gl.colorbarvisible(0)\n"
 
@@ -159,6 +162,7 @@ def plot_4_views_surface_from_parcellation(
     img_paths = []
     for i, (hemi, view) in enumerate(zip(hemis, views)):
         print(f"Plotting {hemi} Hemisphere - {view} View")
+        show_colorbar = False if i != 3 else True  # Colorbar at the bottom
         plot_surface_from_parcellation(
             parcellation_values,
             dir_results,
@@ -169,7 +173,8 @@ def plot_4_views_surface_from_parcellation(
             view=view,
             hemisphere=hemi,
             surf_ice_dir=surfice_dir,
-            show_colorbar=False,
+            show_colorbar=show_colorbar,
+            colorbar_position=1,
         )
         img_paths.append(dir_results / f"{filename_root}_{i}_{view}_{hemi}.png")
 

@@ -5,6 +5,7 @@ Functions to load parcellated data from ADNI.
 import re
 import warnings
 from .loader import FlexibleBIDSLoader, load_numpy_data_to_leaves
+from ..feature_extraction.bold_features import compute_fc
 
 
 class PETParcellatedLoader(FlexibleBIDSLoader):
@@ -151,3 +152,22 @@ class BOLDParcellatedLoader(FlexibleBIDSLoader):
                 del simple_dict[subject]
 
         return simple_dict
+
+    def get_fc_in_simple_dict(self, fisher_z=True):
+        """
+        Gets data and returns it in a dictionary of the type:
+        {"sub_id": {"session": np.array(parcellated_data)}, ... }
+
+        :return dict: Nested dictionary {subject_id: {tracer: np.ndarray, ...}, ...}
+        """
+        # Get simple dict with BOLD signals
+        bold_dict = self.get_parcellated_data_in_simple_dict()
+        # Iterate and obtain FC through Pearson correlation (z-transform as well, opt)
+        simple_dict_fc = {}
+        for subject, sessions in bold_dict.items():  # Iterate over sessions and subs
+            simple_dict_fc[subject] = {}
+            for session in sessions:
+                simple_dict_fc[subject][session] = compute_fc(
+                    bold_dict[subject][session], fisher_z=fisher_z
+                )
+        return simple_dict_fc

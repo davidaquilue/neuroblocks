@@ -55,7 +55,8 @@ def compute_roi_avg_value(vol_arr, atlas_arr, atlas_label, type_stat="mean"):
     atlas_label : int
         Index of the region from the atlas that we will avg img values.
     type_stat : str
-        Type of statistic to compute values over the voxels in the ROI (mean or median)
+        Type of statistic to compute values over the voxels in the ROI (mean, median,
+         sum)
 
     Returns
     -------
@@ -67,6 +68,8 @@ def compute_roi_avg_value(vol_arr, atlas_arr, atlas_label, type_stat="mean"):
         avg_value = np.mean(vol_arr[mask_roi])
     elif type_stat == "median":
         avg_value = np.median(vol_arr[mask_roi])
+    elif type_stat == "sum":
+        avg_value = np.sum(vol_arr[mask_roi])
     else:
         raise ValueError("Type statistic must be 'mean' or 'median'")
     return avg_value
@@ -93,7 +96,8 @@ def compute_metaroi_avg_value(
     volume_weighted: bool
         Whether to compute weighted average value, weighting by volume.
     type_stat_roi : str
-        Type of statistic to compute value over the voxels in each ROI (mean or median)
+        Type of statistic to compute value over the voxels in each ROI (mean, median,
+         sum)
 
     Returns
     -------

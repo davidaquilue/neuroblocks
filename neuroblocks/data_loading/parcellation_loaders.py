@@ -222,3 +222,30 @@ class GMVParcellatedLoader(FlexibleBIDSLoader):
             self._scan()
             load_numpy_data_to_leaves(self.data)
         return self.data
+
+    def get_parcellated_data_in_simple_dict(self):
+        """
+        Gets data and returns it in a dictionary of the type:
+        {"sub_id": {"session": np.array(parcellated_data)}, ... }
+
+        :return dict: Nested dictionary {subject_id: {session_id: np.ndarray, ...}, ...}
+        """
+        # Ensure data is scanned and loaded
+        self.get_parcellated_data()
+
+        simple_dict = {}
+        for subject, sessions in self.data.items():  # Iterate over sessions and subs
+            # Initialize per-subject dict
+            simple_dict[subject] = {}
+
+            # Directly load the available sessions
+            for session in sessions:
+                gmvol_data = sessions.get(session, {}).get("GMvol", {})
+                if not isinstance(gmvol_data.get("data"), type(None)):
+                    simple_dict[subject][session] = gmvol_data.get("data")
+                else:  # Do not add the session to the subject
+                    pass
+            if len(simple_dict[subject]) == 0:  # Remove subjects without data
+                del simple_dict[subject]
+
+        return simple_dict

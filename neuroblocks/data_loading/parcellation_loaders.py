@@ -171,3 +171,54 @@ class BOLDParcellatedLoader(FlexibleBIDSLoader):
                     bold_dict[subject][session], fisher_z=fisher_z
                 )
         return simple_dict_fc
+
+
+class GMVParcellatedLoader(FlexibleBIDSLoader):
+    """
+    GMVParcellatedLoader to load parcellated Gray Matter Volumes.
+
+    Slightly specific DataLoader as SHOOT templates can be generated for different
+    subgroups. For instance, in ADNI, we can generate the following sets of templates:
+    - "all_subjects": only one template taking into account all the subjects in the
+     dataset
+    - "cognormal" / "impaired": one template for CN, another template for MCI/AD
+    - group-templates: for instance one template for CN, another template for MCI,
+     another for AD. Or even stratifying them by Abeta positivity.
+
+     Therefore, we pass an iterable of strs with the names of the templates (each
+     will have a subdirectory in the templates_root_dir), from which we will look for
+     the parcellated data.
+
+    :param template_names (iterable of str): template_names for which we will look for
+    parcellated data.
+    :param templates_root_dir (Path): Path to the directory containing the directories .
+    :param parcellation_str (str): A string identifier for the parcellation scheme
+        used in preprocessing (e.g., 'Schaefer400', 'Glasser').
+    :param subset_participants (list or None): Optional list of participant IDs to limit
+        the data loading to a subset.
+    """
+
+    def __init__(
+        self,
+        template_names,
+        templates_root_dir,
+        parcellation_str,
+        subset_participants=None,
+    ):
+        # We initialize with templates root_dir but will change the dir_to_load
+        # attribute dynamically when scanning the data.
+        super().__init__(templates_root_dir, subset_participants=subset_participants)
+        self.parcellation_str = parcellation_str
+        gmv_re = r"sub-(?P<sub>[^_]+)_ses-(?P<ses>[^_]+)_(?P<modality>GMvol)_"
+        self.pattern = re.compile(gmv_re + self.parcellation_str + r".npy")
+        self.templates_root_dir = templates_root_dir
+        self.template_names = template_names
+
+    def get_parcellated_data(self):
+        # Performs a scan of the data, and then goes over all the obtained paths and
+        # loads the parcellated data in numpy format.
+        for template in self.template_names:
+            self.dir_to_load = self.templates_root_dir / template
+            self._scan()
+            load_numpy_data_to_leaves(self.data)
+        return self.data

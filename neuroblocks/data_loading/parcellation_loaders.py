@@ -196,6 +196,9 @@ class GMVParcellatedLoader(FlexibleBIDSLoader):
         used in preprocessing (e.g., 'Schaefer400', 'Glasser').
     :param subset_participants (list or None): Optional list of participant IDs to limit
         the data loading to a subset.
+    :param load_atrophy_rates (bool): Whether to load the atrophy rates (Gray
+    Matter Volume Annualized Percentage Change, GMvolAPC). Only one per individual,
+    in ses-avg.
     """
 
     def __init__(
@@ -204,12 +207,16 @@ class GMVParcellatedLoader(FlexibleBIDSLoader):
         templates_root_dir,
         parcellation_str,
         subset_participants=None,
+        load_atrophy_rates=False,
     ):
         # We initialize with templates root_dir but will change the dir_to_load
         # attribute dynamically when scanning the data.
         super().__init__(templates_root_dir, subset_participants=subset_participants)
         self.parcellation_str = parcellation_str
-        gmv_re = r"sub-(?P<sub>[^_]+)_ses-(?P<ses>[^_]+)_(?P<modality>GMvol)_"
+        if load_atrophy_rates:
+            gmv_re = r"sub-(?P<sub>[^_]+)_ses-(?P<ses>[^_]+)_(?P<modality>GMvolAPC)_"
+        else:
+            gmv_re = r"sub-(?P<sub>[^_]+)_ses-(?P<ses>[^_]+)_(?P<modality>GMvol)_"
         self.pattern = re.compile(gmv_re + self.parcellation_str + r".npy")
         self.templates_root_dir = templates_root_dir
         self.template_names = template_names

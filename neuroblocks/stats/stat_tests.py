@@ -107,7 +107,7 @@ def stat_tests_features(
 
     Returns:
     - results_df: DataFrame with test results and adjusted p-values.
-    - posthoc_df (optional): If >2 groups, post-hoc test results.
+    - posthoc_df: If >2 groups, post-hoc test results. Else, None
     """
     df_features = df_features.rename(columns={group_key: "group"})
     df_features = df_features.sort_values(by="group")
@@ -244,7 +244,7 @@ def stat_tests_features(
     if not posthoc_df.empty:
         return results_df, posthoc_df
     else:
-        return results_df
+        return results_df, None
 
 
 def compute_effect_size(

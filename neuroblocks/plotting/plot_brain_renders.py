@@ -23,7 +23,8 @@ def plot_4_views_surface_from_parcellation(
     colormap_mode=None,
     surface_type=2,
     title_text=None,
-    plot_flats=False
+    plot_flats=False,
+    save_as_img=False,
 ):
     """
     Function that calls Matlab Function to generate Brain Renders from parcellated
@@ -48,6 +49,8 @@ def plot_4_views_surface_from_parcellation(
     :param title_text: string to plot as title (best avoid, not too clean)
     :param plot_flats: whether to plot flattened cortical surfaces,
         changes structure of subplots.
+    :param save_as_img: whether to save the figure as an image (.png). Defaults to
+        False, saving the figure as a vector graphics in .pdf.
     """
     if vmin is None:
         vmin = []
@@ -70,6 +73,7 @@ def plot_4_views_surface_from_parcellation(
         surface_type,
         title_text,
         plot_flats,
+        save_as_img,
         nargout=0
     )
 

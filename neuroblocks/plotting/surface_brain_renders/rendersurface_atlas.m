@@ -138,6 +138,14 @@ elseif contains(atlasName, "Schaefer")
 elseif atlasName == "Glasser"  % 360 Cortical Regions
     labels_l = 1:180; labels_r = 1:180;
     rh_extra_idx = 180;
+
+elseif atlasName == "AAL"  % AAL with 90 cortical regions
+    % Labels 1-45 are left, 46-90 are right, but some midline regions
+    % leak into the opposite hemisphere surface. Scan both surfaces for
+    % all labels so no regions are lost.
+    labels_l = 1:90;
+    labels_r = 1:90;
+    rh_extra_idx = 0;
 else
     error("atlas " + atlasName + " not yet implemented")
 end

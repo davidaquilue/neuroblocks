@@ -5,7 +5,9 @@ of data.
 Requires a Matlab installation.
 
 """
+import matlab
 import matlab.engine
+import numpy as np
 from pathlib import Path
 
 eng = matlab.engine.start_matlab()
@@ -52,6 +54,13 @@ def plot_4_views_surface_from_parcellation(
     :param save_as_img: whether to save the figure as an image (.png). Defaults to
         False, saving the figure as a vector graphics in .pdf.
     """
+    # Ensure parcellation_values is a MATLAB double vector regardless of
+    # input type (Python list, numpy array, etc.)
+    if not isinstance(parcellation_values, matlab.double):
+        parcellation_values = matlab.double(
+            np.asarray(parcellation_values, dtype=float).tolist()
+        )
+
     if vmin is None:
         vmin = []
     if vmax is None:

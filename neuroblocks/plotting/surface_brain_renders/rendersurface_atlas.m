@@ -48,7 +48,7 @@ if ~exist('inv','var') || isempty(inv)
 end
 
 if ~exist('clmap','var') || isempty(clmap)
-    clmap = 'BrBG5';
+    clmap = 'Cat_12';
 end
 
 if ~exist('surfacetype','var') || isempty(surfacetype)
@@ -57,6 +57,10 @@ end
 
 if ~exist('plotflats','var') || isempty(plotflats)
     plotflats = 0;
+end
+
+if ~exist('saveAsImg','var') || isempty(saveAsImg)
+    saveAsImg = 1;
 end
 
 if atlasName == "DesikanKilliany" || atlasName == "DBS80"
@@ -139,33 +143,88 @@ elseif atlasName == "Glasser"  % 360 Cortical Regions
     labels_l = 1:180; labels_r = 1:180;
     rh_extra_idx = 180;
 
-elseif atlasName == "AAL"  % AAL with 90 cortical regions
-    % Labels 1-45 are left, 46-90 are right, but some midline regions
-    % leak into the opposite hemisphere surface. Scan both surfaces for
-    % all labels so no regions are lost.
-    labels_l = 1:90;
-    labels_r = 1:90;
-    rh_extra_idx = 0;
+elseif atlasName == "AAL"  % AAL with 90 regions
+    % The gifti parcellation has 42 labels (0=medial wall, 1-41=cortical).
+    % aalG maps each of the 41 cortical gifti labels to its AAL region
+    % pair. AAL odd indices are left, even are right hemisphere.
+    % Subcortical regions (AAL 71-78: Caudate, Putamen, Pallidum,
+    % Thalamus) are not in the gifti surface parcellation.
+    %
+    % pos | gifti | AAL L/R | Region
+    % ----|-------|---------|-----------------------------------
+    %   1 |     1 |    1/ 2 | Precentral gyrus
+    %   2 |     2 |    3/ 4 | Superior Frontal gyrus
+    %   3 |    13 |    5/ 6 | Superior Frontal gyrus, Orbital
+    %   4 |     3 |    7/ 8 | Middle Frontal gyrus
+    %   5 |    14 |    9/10 | Middle Frontal gyrus, Orbital
+    %   6 |     4 |   11/12 | Inferior Frontal gyrus, Opercular
+    %   7 |     5 |   13/14 | Inferior Frontal gyrus, Triangular
+    %   8 |     6 |   15/16 | Inferior Frontal gyrus, Orbital
+    %   9 |     7 |   17/18 | Rolandic operculum
+    %  10 |     8 |   19/20 | Supplementary Motor area
+    %  11 |    15 |   21/22 | Olfactory cortex
+    %  12 |     9 |   23/24 | Superior Frontal gyrus, Medial
+    %  13 |    10 |   25/26 | Superior Frontal gyrus, Medial Orbital
+    %  14 |    11 |   27/28 | Gyrus Rectus
+    %  15 |    16 |   29/30 | Insula
+    %  16 |    17 |   31/32 | Cingulate gyrus, Anterior
+    %  17 |    18 |   33/34 | Cingulate gyrus, Middle
+    %  18 |    19 |   35/36 | Cingulate gyrus, Posterior
+    %  19 |    20 |   37/38 | Hippocampus
+    %  20 |    21 |   39/40 | Parahippocampus
+    %  21 |    12 |   41/42 | Amygdala
+    %  22 |    22 |   43/44 | Calcarine fissure
+    %  23 |    23 |   45/46 | Cuneus
+    %  24 |    24 |   47/48 | Lingual gyrus
+    %  25 |    25 |   49/50 | Superior Occipital lobe
+    %  26 |    26 |   51/52 | Middle Occipital lobe
+    %  27 |    27 |   53/54 | Inferior Occipital lobe
+    %  28 |    28 |   55/56 | Fusiform gyrus
+    %  29 |    29 |   57/58 | Postcentral gyrus
+    %  30 |    30 |   59/60 | Superior Parietal gyrus
+    %  31 |    31 |   61/62 | Inferior Parietal gyrus
+    %  32 |    32 |   63/64 | Supramarginal gyrus
+    %  33 |    33 |   65/66 | Angular gyrus
+    %  34 |    34 |   67/68 | Precuneus
+    %  35 |    35 |   69/70 | Paracentral lobule
+    %  36 |    36 |   79/80 | Heschl's gyrus
+    %  37 |    37 |   81/82 | Superior Temporal gyrus
+    %  38 |    38 |   83/84 | Temporal pole, Superior Temporal
+    %  39 |    39 |   85/86 | Middle Temporal gyrus
+    %  40 |    40 |   87/88 | Temporal pole, Middle Temporal
+    %  41 |    41 |   89/90 | Inferior Temporal gyrus
+    aalG  = [1 2 13 3 14 4 5 6 7 8 15 9 10 11 16 17 18 19 20 21 12 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41];
+    aal_L = [1:2:69 79:2:90];  % 41 left-hemisphere AAL indices
+    aal_R = aal_L + 1;         % 41 right-hemisphere AAL indices
+
+    for i = 1:41
+        vl(label_L.cdata == aalG(i)) = parcelValues(aal_L(i));
+    end
+    for i = 1:41
+        vr(label_R.cdata == aalG(i)) = parcelValues(aal_R(i));
+    end
 else
     error("atlas " + atlasName + " not yet implemented")
 end
 
-% Now fill in the maps between parcels and vertices
-for i = 1:numel(labels_l)
-    lbl = labels_l(i);
-    vl(label_L.cdata == lbl) = parcelValues(i);
-end
+% Now fill in the maps between parcels and vertices (skip for AAL, handled above)
+if atlasName ~= "AAL"
+    for i = 1:numel(labels_l)
+        lbl = labels_l(i);
+        vl(label_L.cdata == lbl) = parcelValues(i);
+    end
 
-for i = 1:numel(labels_r)
-    lbl = labels_r(i);
-    parcel_idx = rh_extra_idx + i;
-    vr(label_R.cdata == lbl) = parcelValues(parcel_idx);
+    for i = 1:numel(labels_r)
+        lbl = labels_r(i);
+        parcel_idx = rh_extra_idx + i;
+        vr(label_R.cdata == lbl) = parcelValues(parcel_idx);
+    end
 end
 
 %% -------------------- clean medial wall --------------------
 
-vl(label_L.cdata < 0) = 0;
-vr(label_R.cdata < 0) = 0;
+vl(label_L.cdata < 0 | label_L.cdata == 0) = 0;
+vr(label_R.cdata < 0 | label_R.cdata == 0) = 0;
 
 %% -------------------- rendering --------------------
 

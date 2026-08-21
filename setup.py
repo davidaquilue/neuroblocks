@@ -8,7 +8,7 @@ setup(
     author="David Aquilué-Llorens",
     author_email="david.aquilue@upf.edu",
     description="Utility functions for neuroimaging and Alzheimer's research",
-    long_description=open("README.md").read(),
+    long_description=open("Readme.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/yourusername/your_toolbox",
     packages=find_packages(),

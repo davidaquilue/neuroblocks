@@ -223,53 +223,14 @@ end
 
 %% -------------------- clean medial wall --------------------
 
-vl(label_L.cdata < 0 | label_L.cdata == 0) = 0;
-vr(label_R.cdata < 0 | label_R.cdata == 0) = 0;
-
-%% -------------------- rendering --------------------
-
-fig = figure('Position',[100 100 500 500], 'Visible', 'off');
-if plotflats
-    nrows = 3;
-    ncols = 2;
-else
-    nrows = 4;
-    ncols = 1;
-end
-% Left lateral
-subplot(nrows,ncols,1)
-render_patch(sl, vl, rangemin, rangemax, [-90 0])
-
-% Right medial
-subplot(nrows,ncols,2)
-render_patch(sr, vr, rangemin, rangemax, [90 0])
-
-% Left medial
-subplot(nrows,ncols,3)
-render_patch(sl, vl, rangemin, rangemax, [90 0])
-
-% Right lateral
-subplot(nrows,ncols,4)
-render_patch(sr, vr, rangemin, rangemax, [-90 0])
-
-% Flat maps
-if plotflats
-    subplot(nrows,ncols,5)
-    render_patch(surf.L.flat, vl, rangemin, rangemax, [0 90])
-    
-    subplot(nrows,ncols,6)
-    render_patch(surf.R.flat, vr, rangemin, rangemax, [0 90])
-end
-
-cb = colorbar('southoutside');
-clim([rangemin rangemax]);
-if plotflats
-    cb.Position = [0.25 0.05 0.5 0.02];  % Adjust these values
-else
-    cb.Position = [0.4475 0.05 0.2 0.02];   % Narrower for single column
-end
+medial_l = label_L.cdata <= 0;
+medial_r = label_R.cdata <= 0;
+vl(medial_l) = 0;
+vr(medial_r) = 0;
 
 %% -------------------- colormap --------------------
+
+fig = figure('Position',[100 100 500 500], 'Visible', 'off');
 
 switch inv
     case 0
@@ -280,8 +241,58 @@ switch inv
         c = othercolor(clmap,3);
 end
 
-% medial wall color
-c(1,:) = [0.95 0.95 0.95];
+%% -------------------- per-vertex truecolor --------------------
+% Colors are computed here instead of through the axes colormap, so that
+% the medial wall does not take over an entry of the colormap.
+
+medial_color = [0.95 0.95 0.95];
+cl = values_to_rgb(vl, c, rangemin, rangemax);
+cr = values_to_rgb(vr, c, rangemin, rangemax);
+cl(medial_l,:) = repmat(medial_color, nnz(medial_l), 1);
+cr(medial_r,:) = repmat(medial_color, nnz(medial_r), 1);
+
+%% -------------------- rendering --------------------
+
+if plotflats
+    nrows = 3;
+    ncols = 2;
+else
+    nrows = 4;
+    ncols = 1;
+end
+% Left lateral
+subplot(nrows,ncols,1)
+render_patch(sl, cl, rangemin, rangemax, [-90 0])
+
+% Right medial
+subplot(nrows,ncols,2)
+render_patch(sr, cr, rangemin, rangemax, [90 0])
+
+% Left medial
+subplot(nrows,ncols,3)
+render_patch(sl, cl, rangemin, rangemax, [90 0])
+
+% Right lateral
+subplot(nrows,ncols,4)
+render_patch(sr, cr, rangemin, rangemax, [-90 0])
+
+% Flat maps
+if plotflats
+    subplot(nrows,ncols,5)
+    render_patch(surf.L.flat, cl, rangemin, rangemax, [0 90])
+
+    subplot(nrows,ncols,6)
+    render_patch(surf.R.flat, cr, rangemin, rangemax, [0 90])
+end
+
+% Patches are truecolor; colormap and clim only drive the colorbar
+cb = colorbar('southoutside');
+clim([rangemin rangemax]);
+if plotflats
+    cb.Position = [0.25 0.05 0.5 0.02];  % Adjust these values
+else
+    cb.Position = [0.4475 0.05 0.2 0.02];   % Narrower for single column
+end
 colormap(c)
 
 if exist('titletext','var') && ~isempty(titletext)
@@ -295,3 +306,16 @@ else
     exportgraphics(fig, fullfile(outputDir, fileRoot + ".pdf"), 'ContentType', 'vector')
 end
 close(fig)
+
+
+function rgb = values_to_rgb(values, c, rangemin, rangemax)
+% Map values into colormap c over [rangemin rangemax], as MATLAB does for
+% scaled CData. Values outside the range are clipped to the end colors.
+
+m = size(c, 1);
+rangemin = double(rangemin);
+rangemax = double(rangemax);
+idx = fix((double(values(:)) - rangemin) / (rangemax - rangemin) * m) + 1;
+idx(isnan(idx)) = 1;
+idx = min(max(idx, 1), m);
+rgb = c(idx, :);

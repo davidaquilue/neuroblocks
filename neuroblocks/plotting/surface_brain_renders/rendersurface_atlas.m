@@ -10,7 +10,13 @@ function rendersurface_atlas( ...
     surfacetype, ...
     titletext, ...
     plotflats, ...
-    saveAsImg ...
+    saveAsImg, ...
+    parcelAlpha, ...
+    parcelOutline, ...
+    outlineColor, ...
+    outlineWidth, ...
+    backgroundColor, ...
+    faceColor ...
 )
 % RENDERSURFACE_ATLAS
 % Generic cortical surface renderer for parcel-wise atlas data
@@ -27,6 +33,16 @@ function rendersurface_atlas( ...
 % surfacetype       : 1=mid, 2=inflated, 3=very inflated
 % titletext         : string to plot as title (not too clean)
 % plotflats         : (bool) whether to plot flattened cortical surfaces
+% saveAsImg         : (bool) save as .png instead of vector .pdf
+% parcelAlpha       : parcel-wise values in [0 1]; 1 = full color, 0 = background
+%                     color. Parcels with NaN value get alpha 0. (default: ones)
+% parcelOutline     : parcel-wise logical; true = draw a closed contour around
+%                     the parcel (default: false)
+% outlineColor      : RGB color of the contours (default: [0 0 0])
+% outlineWidth      : line width of the contours (default: 1)
+% backgroundColor   : RGB color that faded parcels blend into
+%                     (default: [0.85 0.85 0.85])
+% faceColor         : patch FaceColor, 'interp' (default) or 'flat'
 
 %% -------------------- defaults --------------------
 
@@ -62,6 +78,50 @@ end
 if ~exist('saveAsImg','var') || isempty(saveAsImg)
     saveAsImg = 1;
 end
+
+nParcels = numel(parcelValues);
+
+if ~exist('parcelAlpha','var') || isempty(parcelAlpha)
+    parcelAlpha = ones(nParcels, 1);
+end
+
+if ~exist('parcelOutline','var') || isempty(parcelOutline)
+    parcelOutline = false(nParcels, 1);
+end
+
+if ~exist('outlineColor','var') || isempty(outlineColor)
+    outlineColor = [0 0 0];
+end
+
+if ~exist('outlineWidth','var') || isempty(outlineWidth)
+    outlineWidth = 1;
+end
+
+if ~exist('backgroundColor','var') || isempty(backgroundColor)
+    backgroundColor = [0.85 0.85 0.85];
+end
+
+if ~exist('faceColor','var') || isempty(faceColor)
+    faceColor = 'interp';
+end
+
+if numel(parcelAlpha) ~= nParcels
+    error("parcelAlpha has %d elements, expected %d (one per parcel)", numel(parcelAlpha), nParcels)
+end
+
+if numel(parcelOutline) ~= nParcels
+    error("parcelOutline has %d elements, expected %d (one per parcel)", numel(parcelOutline), nParcels)
+end
+
+parcelAlpha = double(parcelAlpha(:));
+if any(~(parcelAlpha >= 0 & parcelAlpha <= 1))
+    error("parcelAlpha values must be within [0, 1]")
+end
+parcelAlpha(isnan(parcelValues(:))) = 0;  % missing values drawn as background
+
+parcelOutline = logical(parcelOutline(:));
+outlineColor = double(outlineColor(:)');
+backgroundColor = double(backgroundColor(:)');
 
 if atlasName == "DesikanKilliany" || atlasName == "DBS80"
     error("Rendering Function not yet available for DesikanKilliany and DBS80")
@@ -125,6 +185,12 @@ end
 vl = parcel_to_vertex(parcelValues, pidx_l, 0);
 vr = parcel_to_vertex(parcelValues, pidx_r, 0);
 
+al = parcel_to_vertex(parcelAlpha, pidx_l, 0);
+ar = parcel_to_vertex(parcelAlpha, pidx_r, 0);
+
+kl = parcel_to_vertex(parcelOutline, pidx_l, false);
+kr = parcel_to_vertex(parcelOutline, pidx_r, false);
+
 medial_l = label_L.cdata <= 0;
 medial_r = label_R.cdata <= 0;
 
@@ -143,13 +209,26 @@ end
 
 %% -------------------- per-vertex truecolor --------------------
 % Colors are computed here instead of through the axes colormap, so that
-% the medial wall does not take over an entry of the colormap.
+% the medial wall does not take over an entry of the colormap. Alpha is
+% blended manually into backgroundColor: real transparency breaks vector
+% export and interacts badly with lighting.
 
 medial_color = [0.95 0.95 0.95];
 cl = values_to_rgb(vl, c, rangemin, rangemax);
 cr = values_to_rgb(vr, c, rangemin, rangemax);
+cl = al .* cl + (1 - al) .* backgroundColor;
+cr = ar .* cr + (1 - ar) .* backgroundColor;
 cl(medial_l,:) = repmat(medial_color, nnz(medial_l), 1);
 cr(medial_r,:) = repmat(medial_color, nnz(medial_r), 1);
+
+%% -------------------- outlines --------------------
+
+outline_l = [];
+outline_r = [];
+if any(parcelOutline)
+    outline_l = struct('indicator', kl, 'color', outlineColor, 'width', outlineWidth);
+    outline_r = struct('indicator', kr, 'color', outlineColor, 'width', outlineWidth);
+end
 
 %% -------------------- rendering --------------------
 
@@ -162,27 +241,35 @@ else
 end
 % Left lateral
 subplot(nrows,ncols,1)
-render_patch(sl, cl, rangemin, rangemax, [-90 0])
+render_patch(sl, cl, rangemin, rangemax, [-90 0], outline_l, faceColor)
 
 % Right medial
 subplot(nrows,ncols,2)
-render_patch(sr, cr, rangemin, rangemax, [90 0])
+render_patch(sr, cr, rangemin, rangemax, [90 0], outline_r, faceColor)
 
 % Left medial
 subplot(nrows,ncols,3)
-render_patch(sl, cl, rangemin, rangemax, [90 0])
+render_patch(sl, cl, rangemin, rangemax, [90 0], outline_l, faceColor)
 
 % Right lateral
 subplot(nrows,ncols,4)
-render_patch(sr, cr, rangemin, rangemax, [-90 0])
+render_patch(sr, cr, rangemin, rangemax, [-90 0], outline_r, faceColor)
 
 % Flat maps
 if plotflats
     subplot(nrows,ncols,5)
-    render_patch(surf.L.flat, cl, rangemin, rangemax, [0 90])
+    render_patch(surf.L.flat, cl, rangemin, rangemax, [0 90], outline_l, faceColor)
 
     subplot(nrows,ncols,6)
-    render_patch(surf.R.flat, cr, rangemin, rangemax, [0 90])
+    render_patch(surf.R.flat, cr, rangemin, rangemax, [0 90], outline_r, faceColor)
+end
+
+% With outlines, a vector export makes MATLAB sort every triangle of the lit
+% surface: huge files that also show contours hidden behind the surface.
+% Embed the panels as OpenGL images instead (MATLAB already does so for lit
+% surfaces without lines); colorbar and title stay vector.
+if ~saveAsImg && any(parcelOutline)
+    rasterize_panels(fig, 600)
 end
 
 % Patches are truecolor; colormap and clim only drive the colorbar
@@ -311,6 +398,34 @@ function v = parcel_to_vertex(parcelData, pidx, fillValue)
 v = repmat(fillValue, numel(pidx), 1);
 inParcel = pidx > 0;
 v(inParcel) = parcelData(pidx(inParcel));
+
+
+function rasterize_panels(fig, dpi)
+% Replace every axes of fig by an image of its OpenGL rendering, cropped
+% from a capture of the whole figure at the given resolution. Images are
+% trimmed to their content so exportgraphics still crops tightly.
+
+axs = findobj(fig, 'Type', 'axes');
+img = print(fig, '-RGBImage', '-opengl', sprintf('-r%d', dpi));
+[H, W, ~] = size(img);
+for ax = axs'
+    pos = get(ax, 'Position');  % normalized units
+    rows = max(1, round((1 - pos(2) - pos(4)) * H) + 1) : min(H, round((1 - pos(2)) * H));
+    cols = max(1, round(pos(1) * W) + 1) : min(W, round((pos(1) + pos(3)) * W));
+    delete(ax)
+
+    panel = img(rows, cols, :);
+    ink = any(panel ~= panel(1,1,:), 3);  % pixels differing from background
+    if ~any(ink(:))
+        continue
+    end
+    rows = rows(find(any(ink, 2), 1) : find(any(ink, 2), 1, 'last'));
+    cols = cols(find(any(ink, 1), 1) : find(any(ink, 1), 1, 'last'));
+
+    iax = axes(fig, 'Position', [(cols(1) - 1) / W, 1 - rows(end) / H, numel(cols) / W, numel(rows) / H]);
+    image(iax, img(rows, cols, :))
+    axis(iax, 'off')
+end
 
 
 function rgb = values_to_rgb(values, c, rangemin, rangemax)

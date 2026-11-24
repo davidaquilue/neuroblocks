@@ -2,17 +2,39 @@
 Module that calls Matlab Functions to generate Brain Renders from parcellated arrays
 of data.
 
-Requires a Matlab installation.
+Requires a Matlab installation, the matching matlabengine package and SPM (or
+the GIfTI toolbox) on the Matlab path; see the README. The engine is started on
+the first render, so importing this module does not require any of them.
 
 """
-import matlab
-import matlab.engine
 import numpy as np
 from pathlib import Path
 
-eng = matlab.engine.start_matlab()
-root_file = Path(__file__).resolve().parent
-eng.addpath(str(root_file / "surface_brain_renders"))
+_eng = None
+
+
+def _get_engine():
+    """
+    Return the shared Matlab engine, starting it on first use with the render
+    functions on its path.
+
+    :raises RuntimeError: if ``gifti`` is not on the Matlab path.
+    """
+    global _eng
+    if _eng is None:
+        import matlab.engine
+
+        eng = matlab.engine.start_matlab()
+        eng.addpath(str(Path(__file__).resolve().parent / "surface_brain_renders"))
+        if not eng.exist("gifti"):
+            eng.quit()
+            raise RuntimeError(
+                "Matlab function 'gifti' not found. Add SPM (or the GIfTI "
+                "toolbox) to the Matlab path, see the neuroblocks README."
+            )
+        _eng = eng
+    return _eng
+
 
 def plot_4_views_surface_from_parcellation(
     parcellation_values,
@@ -66,8 +88,7 @@ def plot_4_views_surface_from_parcellation(
         changes structure of subplots.
     :param save_as_img: whether to save the figure as an image (.png). Defaults to
         False, saving the figure as a vector graphics in .pdf (brain panels are
-        embedded as images, colorbar and title are vector; with outlines the
-        panels are embedded at 600 dpi).
+        embedded as high-resolution images, colorbar and title are vector).
     :param parcel_alpha: array-like of floats in [0, 1], one per parcel. 1 draws
         the parcel at full color, 0 draws it in ``background_color``, values in
         between blend the two. None (default) means all ones.
@@ -81,6 +102,8 @@ def plot_4_views_surface_from_parcellation(
     :raises ValueError: if ``parcel_alpha`` or ``parcel_outline`` do not have one
         element per parcel, or if any alpha is outside [0, 1].
     """
+    import matlab
+
     # Ensure parcellation_values is a MATLAB double vector regardless of
     # input type (Python list, numpy array, etc.)
     if not isinstance(parcellation_values, matlab.double):
@@ -127,7 +150,7 @@ def plot_4_views_surface_from_parcellation(
     if title_text is None:
         title_text = []
 
-    eng.rendersurface_atlas(
+    _get_engine().rendersurface_atlas(
         parcellation_str,
         parcellation_values,
         str(dir_results),

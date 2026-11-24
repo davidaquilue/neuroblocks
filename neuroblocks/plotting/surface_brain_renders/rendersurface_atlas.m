@@ -196,7 +196,27 @@ medial_r = label_R.cdata <= 0;
 
 %% -------------------- colormap --------------------
 
-fig = figure('Position',[100 100 500 500], 'Visible', 'off');
+% PDF panels are embedded as images (rasterize_panels), and how depends on
+% the figure system:
+% - R2025a+ (web figures, seen in R2026b): images are resampled to a fixed
+%   2 px per point of their size on the page. The whole figure is drawn
+%   exportScale times larger (line widths and fonts too) and captured at
+%   144 dpi. It must be large from the start: a resize after
+%   rasterize_panels is ignored by exportgraphics.
+% - Older (Java figures, seen in R2024b): images are embedded as captured,
+%   but figures are limited to the screen size. Keep the normal size and
+%   capture at a high resolution instead.
+exportScale = 1;
+captureDpi = 864;
+if ~saveAsImg && ~isMATLABReleaseOlderThan("R2025a")
+    exportScale = 6;
+    captureDpi = 144;
+end
+
+% White figure, also kept when printing (rasterize_panels): newer MATLAB
+% (seen in R2026b) otherwise captures and exports a black background.
+fig = figure('Position', [100 100 500*exportScale 500*exportScale], ...
+    'Visible', 'off', 'Color', 'white', 'InvertHardcopy', 'off');
 
 switch inv
     case 0
@@ -226,8 +246,9 @@ cr(medial_r,:) = repmat(medial_color, nnz(medial_r), 1);
 outline_l = [];
 outline_r = [];
 if any(parcelOutline)
-    outline_l = struct('indicator', kl, 'color', outlineColor, 'width', outlineWidth);
-    outline_r = struct('indicator', kr, 'color', outlineColor, 'width', outlineWidth);
+    lineWidth = outlineWidth * exportScale;
+    outline_l = struct('indicator', kl, 'color', outlineColor, 'width', lineWidth);
+    outline_r = struct('indicator', kr, 'color', outlineColor, 'width', lineWidth);
 end
 
 %% -------------------- rendering --------------------
@@ -264,12 +285,13 @@ if plotflats
     render_patch(surf.R.flat, cr, rangemin, rangemax, [0 90], outline_r, faceColor)
 end
 
-% With outlines, a vector export makes MATLAB sort every triangle of the lit
-% surface: huge files that also show contours hidden behind the surface.
-% Embed the panels as OpenGL images instead (MATLAB already does so for lit
-% surfaces without lines); colorbar and title stay vector.
-if ~saveAsImg && any(parcelOutline)
-    rasterize_panels(fig, 600)
+% A vector export makes MATLAB write every triangle of the lit surface: huge
+% files (~150 MB), and with outlines also contours hidden behind the surface.
+% Older MATLAB embedded lit surfaces as images by itself, newer (seen in
+% R2026b) does not. Embed the panels as OpenGL images instead; colorbar and
+% title stay vector.
+if ~saveAsImg
+    rasterize_panels(fig, captureDpi)
 end
 
 % Patches are truecolor; colormap and clim only drive the colorbar
@@ -281,16 +303,19 @@ else
     cb.Position = [0.4475 0.05 0.2 0.02];   % Narrower for single column
 end
 colormap(c)
+cb.Color = [0 0 0];  % newer MATLAB themes default to gray text
 
+scale_size(cb, exportScale)
 if exist('titletext','var') && ~isempty(titletext)
-    sgtitle(titletext)
-
+    scale_size(sgtitle(titletext, 'Color', [0 0 0]), exportScale)
 end
 
 if saveAsImg
-    exportgraphics(fig, fullfile(outputDir, fileRoot + ".png"))
+    exportgraphics(fig, fullfile(outputDir, fileRoot + ".png"), ...
+        'BackgroundColor', 'white')
 else
-    exportgraphics(fig, fullfile(outputDir, fileRoot + ".pdf"), 'ContentType', 'vector')
+    exportgraphics(fig, fullfile(outputDir, fileRoot + ".pdf"), ...
+        'ContentType', 'vector', 'BackgroundColor', 'white')
 end
 close(fig)
 
@@ -425,6 +450,16 @@ for ax = axs'
     iax = axes(fig, 'Position', [(cols(1) - 1) / W, 1 - rows(end) / H, numel(cols) / W, numel(rows) / H]);
     image(iax, img(rows, cols, :))
     axis(iax, 'off')
+end
+
+
+function scale_size(h, k)
+% Multiply font size (and line width, if any) of h by k, to keep its look
+% in a figure drawn k times larger.
+
+h.FontSize = k * h.FontSize;
+if isprop(h, 'LineWidth')
+    h.LineWidth = k * h.LineWidth;
 end
 
 

@@ -88,8 +88,7 @@ def plot_4_views_surface_from_parcellation(
         changes structure of subplots.
     :param save_as_img: whether to save the figure as an image (.png). Defaults to
         False, saving the figure as a vector graphics in .pdf (brain panels are
-        embedded as images, colorbar and title are vector; with outlines the
-        panels are embedded at 600 dpi).
+        embedded as high-resolution images, colorbar and title are vector).
     :param parcel_alpha: array-like of floats in [0, 1], one per parcel. 1 draws
         the parcel at full color, 0 draws it in ``background_color``, values in
         between blend the two. None (default) means all ones.

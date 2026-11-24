@@ -63,4 +63,20 @@ one matching your release, e.g. for R2026b:
 pip install "matlabengine==26.2.*"
 ```
 
+The renders also need the `gifti` function to read the surface files, which is
+not bundled with neuroblocks. It comes with
+[SPM12](https://www.fil.ion.ucl.ac.uk/spm/software/spm12/) (or the standalone
+[GIfTI toolbox](https://github.com/gllmflndn/gifti)), whose folder must be on
+the MATLAB path every time MATLAB starts, including when started by the engine.
+Either add it once and save the path from MATLAB:
+
+```matlab
+addpath('C:\path\to\spm'); savepath
+```
+
+or, if `savepath` lacks write permission (common after a fresh install), add the
+`addpath` line to a `startup.m` file in your MATLAB `userpath` folder (usually
+`Documents\MATLAB`). Only the SPM root folder is needed, not its subfolders.
+Check it with `which gifti` from MATLAB.
+
 *Additional Technical Details such as the use of GPU or other software*

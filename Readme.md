@@ -48,9 +48,19 @@ Technical details
 ---------------------------
 The code is developed using Python `3.9`.
 
-Matlab API and everything should be accounted for! Same matlab engine as matlab version!
-
 A miniconda virtual environment is used, containing the packages listed in the 
 `requirements.txt` file.
+
+### MATLAB (brain renders)
+The surface brain renders in `neuroblocks.plotting.plot_brain_renders` run in
+MATLAB, called from Python through the MATLAB Engine API. The engine is not in
+`requirements.txt` because its version must match the installed MATLAB release:
+`matlabengine` 24.2.x for R2024b, 26.2.x for R2026b, and so on (see the
+[version table](https://pypi.org/project/matlabengine/#history)). Install the
+one matching your release, e.g. for R2026b:
+
+```
+pip install "matlabengine==26.2.*"
+```
 
 *Additional Technical Details such as the use of GPU or other software*

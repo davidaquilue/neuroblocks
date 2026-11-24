@@ -63,6 +63,9 @@ one matching your release, e.g. for R2026b:
 pip install "matlabengine==26.2.*"
 ```
 
+The engine is started on the first render (and reused afterwards), so
+importing `plot_brain_renders` does not need MATLAB or `matlabengine`.
+
 The renders also need the `gifti` function to read the surface files, which is
 not bundled with neuroblocks. It comes with
 [SPM12](https://www.fil.ion.ucl.ac.uk/spm/software/spm12/) (or the standalone
